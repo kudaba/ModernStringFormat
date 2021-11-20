@@ -1,0 +1,308 @@
+#pragma once
+
+#include <stdint.h>
+#include <stddef.h>
+
+//-------------------------------------------------------------------------------------------------
+// Format type is used to identify incoming data and hold a pointer or reference
+// to it.
+// TODO: I wonder if we can use typetrait types? improvement for another day
+//-------------------------------------------------------------------------------------------------
+class MSF_StringFormatType
+{
+public:
+    enum ValidTypes
+    {
+		TypeString  = (1 << 0), // UTF-8
+
+		// BEGIN DO NOT MOVE: Otherwise changed need to be made in printer
+        Type8       = (1 << 1),
+        Type16      = (1 << 2),
+        Type32      = (1 << 3),
+        Type64      = (1 << 4),
+        Typefloat = (1 << 5),
+        Typedouble = (1 << 6),
+		// END DO NOT MOVE
+
+		TypeUTF16 = (1 << 7), // UTF-16
+
+		TypeUserIndex = 8, // first user type, can go up to number of bits in uint32_t
+		TypeUser	= (1 << TypeUserIndex), 
+    };
+
+	enum Flags
+	{
+		Signed		= (1 << 0),
+		Char		= (1 << 1),
+		Pointer		= (1 << 2),
+	};
+
+    explicit MSF_StringFormatType(int8_t const& aData) : myValue64(aData & UINT8_MAX), myType(Type8), myUserData(Signed) {}
+    explicit MSF_StringFormatType(uint8_t const& aData) : myValue64(aData & UINT8_MAX), myType(Type8), myUserData(0) {}
+    explicit MSF_StringFormatType(int16_t const& aData) : myValue64(aData & UINT16_MAX), myType(Type16), myUserData(Signed) {}
+    explicit MSF_StringFormatType(uint16_t const& aData) : myValue64(aData & UINT16_MAX), myType(Type16), myUserData(0) {}
+    explicit MSF_StringFormatType(int32_t const& aData) : myValue64(aData & UINT32_MAX), myType(Type32), myUserData(Signed) {}
+    explicit MSF_StringFormatType(uint32_t const& aData) : myValue64(aData & UINT32_MAX), myType(Type32), myUserData(0) {}
+    explicit MSF_StringFormatType(int64_t const& aData) : myValue64(aData), myType(Type64), myUserData(Signed) {}
+    explicit MSF_StringFormatType(uint64_t const& aData) : myValue64(aData), myType(Type64), myUserData(0) {}
+    explicit MSF_StringFormatType(float const& aData) : myfloat(aData), myType(Typefloat), myUserData(0) {}
+    explicit MSF_StringFormatType(double const& aData) : mydouble(aData), myType(Typedouble), myUserData(0) {}
+
+	explicit MSF_StringFormatType(char const& aData) : myValue32(aData), myType(Type8), myUserData(Signed | Char) {}
+	explicit MSF_StringFormatType(char const* aData) : myString(aData), myType(TypeString), myUserData(0) {}
+
+	explicit MSF_StringFormatType(wchar_t const& aData) : myValue32(aData), myType(Type16), myUserData(Signed | Char) {}
+	explicit MSF_StringFormatType(wchar_t const* aData) : myUTF16String(aData), myType(TypeUTF16), myUserData(0) {}
+
+	explicit MSF_StringFormatType(void const* aData) : myUserType(aData), myType(Type64), myUserData(Pointer) {}
+
+    // user types
+protected:
+    MSF_StringFormatType(void const* aData, uint64_t aTypeID, uint64_t someFlags = 0) : myUserType(aData), myType(aTypeID), myUserData(someFlags) {}
+public:
+
+    union
+    {
+		char const* myString;
+		wchar_t const* myUTF16String;
+		uint8_t myValue8;
+		uint16_t myValue16;
+		uint32_t myValue32;
+        uint64_t myValue64;
+        float myfloat;
+        double mydouble;
+		void const* myUserType;
+    };
+	uint64_t myType;
+	uint64_t myUserData;
+};
+
+//-------------------------------------------------------------------------------------------------
+// A workaround to make all types use format type (which will fail for unsupported types)
+//-------------------------------------------------------------------------------------------------
+template <typename Type>
+struct MSF_StringFormatTypeLookup
+{
+	using Format = MSF_StringFormatType;
+};
+
+//-------------------------------------------------------------------------------------------------
+// For types that don't auto convert to a known type you can use this macro to define a conversion
+// function to use at call sites.
+// 
+// Example: MSF_DEFINE_TYPE_CONVERSION(MSF_DEFINE_TYPE_CONVERSION(std::string, aString.c_str()));
+//-------------------------------------------------------------------------------------------------
+#define MSF_DEFINE_TYPE_CONVERSION(type, ...) \
+template <> struct MSF_StringFormatTypeLookup<type> { \
+	struct Format : MSF_StringFormatType { \
+	Format(type const& aString) : MSF_StringFormatType(__VA_ARGS__) {} \
+	}; \
+};
+
+//-------------------------------------------------------------------------------------------------
+// For everything else, users must define the supported types using the macro to keep
+// compile time errors for unsupported types.
+// 
+// Example: MSF_DEFINE_USER_PRINTF_TYPE(std::chrono::seconds, 0);
+// 
+// Note: By default custom items will be stored by pointer. If you want to optimize this then you can either use a conversion or
+// define your custom type manually.
+// Note: Users must manage the TypeIds carefully. There are only 64-MSF_StringFormatType::TypeUserIndex available.
+// Note: When using the macro you can use a 0 based index, but if using the MSF_StringFormatTypeCustom directly you
+// need to adjust by MSF_StringFormatType::TypeUserIndex.
+//-------------------------------------------------------------------------------------------------
+template<typename UserType, uint64_t TypeID, uint64_t UserData = 0>
+class MSF_StringFormatTypeCustom : public MSF_StringFormatType
+{
+public:
+    MSF_StringFormatTypeCustom(UserType const& aData) : MSF_StringFormatType(&aData, TypeID, UserData)
+    {
+        static_assert(TypeID >= TypeUser, "Invalid MSF_TypeID, use a higher number");
+    }
+};
+
+//-------------------------------------------------------------------------------------------------
+#define MSF_DEFINE_USER_PRINTF_TYPE(type, index) MSF_DEFINE_USER_PRINTF_TYPE_FLAG(type, index, 0)
+
+//-------------------------------------------------------------------------------------------------
+// Use this if you want to include any additional or custom information along with your type to allow sharing
+// print functions without consuming additional indexes
+//-------------------------------------------------------------------------------------------------
+#define MSF_DEFINE_USER_PRINTF_TYPE_FLAG(type, index, flag) template <>\
+struct MSF_StringFormatTypeLookup<type>\
+{\
+	static constexpr uint64_t UserIndex = index; \
+	static constexpr uint64_t ID = MSF_StringFormatType::TypeUser << index; \
+	static constexpr uint64_t Flag = flag; \
+    using Format = MSF_StringFormatTypeCustom<type, ID, Flag>;\
+};
+
+//-------------------------------------------------------------------------------------------------
+// For int types that don't match our internal types you can extend using this.
+// It will convert to the nearest size/signed type (i.e. DWORD on windows)
+// 
+// Example: MSF_DEFINE_USER_INT_TYPE(DWORD);
+//-------------------------------------------------------------------------------------------------
+template <int Size, bool Signed>
+struct MSF_StringFormatExtraIntTypeInfo {};
+
+template <typename Type>
+struct MSF_StringFormatIsSigned { static constexpr bool Value = Type(-1) < Type(0); };
+
+template <> struct MSF_StringFormatExtraIntTypeInfo<1, false> { typedef uint8_t Type; };
+template <> struct MSF_StringFormatExtraIntTypeInfo<2, false> { typedef uint16_t Type; };
+template <> struct MSF_StringFormatExtraIntTypeInfo<4, false> { typedef uint32_t Type; };
+template <> struct MSF_StringFormatExtraIntTypeInfo<8, false> { typedef uint64_t Type; };
+template <> struct MSF_StringFormatExtraIntTypeInfo<1, true> { typedef int8_t Type; };
+template <> struct MSF_StringFormatExtraIntTypeInfo<2, true> { typedef int16_t Type; };
+template <> struct MSF_StringFormatExtraIntTypeInfo<4, true> { typedef int32_t Type; };
+template <> struct MSF_StringFormatExtraIntTypeInfo<8, true> { typedef int64_t Type; };
+
+template <typename IntType>
+class MSF_StringFormatExtraIntType : public MSF_StringFormatType
+{
+public:
+	using ConvertType = typename MSF_StringFormatExtraIntTypeInfo<sizeof(IntType), MSF_StringFormatIsSigned<IntType>::Value>::Type;
+
+	MSF_StringFormatExtraIntType(IntType anInt) : MSF_StringFormatType((ConvertType)anInt)
+	{
+	}
+};
+
+#define MSF_DEFINE_USER_INT_TYPE(type) template <>\
+struct MSF_StringFormatTypeLookup<type>\
+{\
+    using Format = MSF_StringFormatExtraIntType<type>;\
+};
+
+//-------------------------------------------------------------------------------------------------
+// Type safe version of va_args that build using the MSF_MakeStringFormat below.
+// This should never be stored directly, but it safe to pass as a reference
+//-------------------------------------------------------------------------------------------------
+template <typename Char>
+class MSF_StringFormatTemplate
+{
+public:
+	Char const* GetString() const { return myString; }
+	MSF_StringFormatType const* GetArgs() const { return myArgs; }
+	uint32_t NumArgs() const { return myNumArgs; }
+
+protected:
+	MSF_StringFormatTemplate(Char const* aString, MSF_StringFormatType* someArgs, uint32_t aCount)
+		: myString(aString)
+		, myArgs(someArgs)
+		, myNumArgs(aCount)
+	{}
+
+	Char const* myString;
+	MSF_StringFormatType* myArgs;
+	uint32_t myNumArgs;
+};
+
+extern template class MSF_StringFormatTemplate<char>;
+extern template class MSF_StringFormatTemplate<wchar_t>;
+
+using MSF_StringFormat = MSF_StringFormatTemplate<char>;
+using MSF_StringFormatUTF16 = MSF_StringFormatTemplate<wchar_t>;
+
+//-------------------------------------------------------------------------------------------------
+// Holds all the arguments for a printable string
+//-------------------------------------------------------------------------------------------------
+template<typename Char, typename ...Args>
+class MSF_StringFormatContainer : public MSF_StringFormatTemplate<Char>
+{
+public:
+	MSF_StringFormatContainer(Char const* aString, Args const&... args)
+		: MSF_StringFormatTemplate<Char>(aString, myArgs, sizeof...(Args))
+		, myArgs { typename MSF_StringFormatTypeLookup<Args>::Format(args)... }
+	{
+	}
+
+private:
+	MSF_StringFormatType myArgs[sizeof...(Args)];
+};
+
+template<typename Char>
+class MSF_StringFormatContainer<Char> : public MSF_StringFormatTemplate<Char>
+{
+public:
+	MSF_StringFormatContainer(Char const* aString)
+		: MSF_StringFormatTemplate<Char>(aString, nullptr, 0)
+	{
+	}
+};
+//-------------------------------------------------------------------------------------------------
+// Start of typesafe printf, this part generates the data that holds references to the inputs
+// These do not use templates for the char type since we only support char and wchar_t
+//-------------------------------------------------------------------------------------------------
+extern intptr_t MSF_FormatString(MSF_StringFormat const& aStringFormat, char* aBuffer, size_t aBufferLength, size_t anOffset = 0, char* (*aReallocFunction)(char*, size_t, void*) = nullptr, void* aUserData = nullptr);
+extern intptr_t MSF_FormatString(MSF_StringFormatUTF16 const& aStringFormat, wchar_t* aBuffer, size_t aBufferLength, size_t anOffset = 0, wchar_t* (*aReallocFunction)(wchar_t*, size_t, void*) = nullptr, void* aUserData = nullptr);
+
+//-------------------------------------------------------------------------------------------------
+// MSF_MakeStringFormat gives you an object you can use to perform the printf into any buffer
+// 
+// Warning: If conversions are used in conjunction with trying to capture the results of MSF_MakeStringFormat
+// locally, temporaries will get destroyed. Try to always use MSF_MakeStringFormat when passing directly
+// into another function: i.e. LogMessage(MSF_MakeStringFormat(...));
+//-------------------------------------------------------------------------------------------------
+template<typename ...Args>
+MSF_StringFormatContainer<char, Args...> MSF_MakeStringFormat(char const* aString, Args const&... args)
+{
+	return MSF_StringFormatContainer<char, Args...>(aString, args...);
+}
+template<typename ...Args>
+MSF_StringFormatContainer<wchar_t, Args...> MSF_MakeStringFormat(wchar_t const* aString, Args const&... args)
+{
+	return MSF_StringFormatContainer<wchar_t, Args...>(aString, args...);
+}
+//-------------------------------------------------------------------------------------------------
+// snprintf style calls to print into static buffers. The variations are to support a wide range
+// of character and size types but not too many.
+//-------------------------------------------------------------------------------------------------
+template<uint32_t Size, typename ...Args>
+intptr_t MSF_Format(char (&aBuffer)[Size], char const* aString, Args const&... args)
+{
+	return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, Size, 0);
+}
+
+template<typename ...Args>
+intptr_t MSF_Format(char* aBuffer, size_t aSize, char const* aString, Args const&... args)
+{
+	return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize, 0);
+}
+
+template<typename ...Args>
+intptr_t MSF_Format(char* aBuffer, intptr_t aSize, char const* aString, Args const&... args)
+{
+	return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize, 0);
+}
+
+template<typename ...Args>
+intptr_t MSF_Format(char* aBuffer, int aSize, char const* aString, Args const&... args)
+{
+	return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize, 0);
+}
+
+template<uint32_t Size, typename ...Args>
+intptr_t MSF_Format(wchar_t(&aBuffer)[Size], wchar_t const* aString, Args const&... args)
+{
+	return MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), aBuffer, Size, 0);
+}
+
+template<typename ...Args>
+intptr_t MSF_Format(wchar_t* aBuffer, size_t aSize, wchar_t const* aString, Args const&... args)
+{
+	return MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), aBuffer, aSize, 0);
+}
+
+template<typename ...Args>
+intptr_t MSF_Format(wchar_t* aBuffer, intptr_t aSize, wchar_t const* aString, Args const&... args)
+{
+	return MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), aBuffer, aSize, 0);
+}
+
+template<typename ...Args>
+intptr_t MSF_Format(wchar_t* aBuffer, int aSize, wchar_t const* aString, Args const&... args)
+{
+	return MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), aBuffer, aSize, 0);
+}

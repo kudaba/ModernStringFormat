@@ -175,6 +175,10 @@ struct MSF_StringFormatTypeLookup<type>\
     using Format = MSF_StringFormatExtraIntType<type>;\
 };
 
+// Add conversions for long/ulong since some platforms defined intptr_t/size_t as that
+MSF_DEFINE_USER_INT_TYPE(long);
+MSF_DEFINE_USER_INT_TYPE(unsigned long);
+
 //-------------------------------------------------------------------------------------------------
 // Type safe version of va_args that build using the MSF_MakeStringFormat below.
 // This should never be stored directly, but it safe to pass as a reference

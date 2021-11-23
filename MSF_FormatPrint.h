@@ -11,10 +11,10 @@
 enum MSF_PrintFlags
 {
 	PRINT_PREFIX = 0x01,		// '#' Only show decimal point if digits follow, truncate trailing zeros
-	PRINT_SIGN = 0x02,		// '+' show + sign when positive
-	PRINT_BLANK = 0x04,		// ' ' prefix with spaces / show space when positive
+	PRINT_SIGN = 0x02,			// '+' show + sign when positive
+	PRINT_BLANK = 0x04,			// ' ' prefix with spaces / show space when positive
 	PRINT_LEFTALIGN = 0x08,		// '-' invalidates the zero option
-	PRINT_ZERO = 0x10,		// '0' prefix with zeros
+	PRINT_ZERO = 0x10,			// '0' prefix with zeros
 	PRINT_PRECISION = 0x20,		// '.' notifies that precision was specified
 };
 

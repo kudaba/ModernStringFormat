@@ -152,9 +152,9 @@ namespace MSF_StringFormatInt
 
 		// type = (2/4/8/16) target = (3/5/10/20)
 		// type / 2 * 3 = (3/6/12/24) - type >> 2 (0/1/2/4) = (3/5/10/20), exactly what we need, + 1 for sign, just in case its negative
-		size_t maxLength = size_t(aValue.myType / 2 * 3 - (aValue.myType >> 2) + 1);
+		size_t maxLength = size_t(aValue.myType / 2 * 3 - (aValue.myType >> 2));
 		maxLength = MSF_IntMax<size_t>(maxLength, aPrintData.myPrecision);
-		return MSF_IntMax<size_t>(maxLength, aPrintData.myWidth);
+		return MSF_IntMax<size_t>(maxLength, aPrintData.myWidth) + 1;
 	}
 
 	size_t ValidateOctal(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
@@ -308,7 +308,9 @@ namespace MSF_StringFormatInt
 		}
 		else if (string[0] == '0' && (flags & PRINT_PRECISION) && precision == 0)
 		{
-			--length;
+			// Odd hack where we're actually printing the octal prefix 0 not the value 0
+			if (aData.myPrintChar != 'o' || !addPrefix)
+				--length;
 		}
 
 		uint32_t requiredLength = MSF_IntMax<uint32_t>(length, precision) + prefixLen + printSign;

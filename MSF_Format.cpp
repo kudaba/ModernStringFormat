@@ -108,12 +108,23 @@ namespace MSF_CustomPrint
 	int GetFirstSetBit(uint64_t aValue)
 	{
 #if _MSC_VER
+#if INTPTR_MAX == INT32_MAX
+		extern unsigned char ::_BitScanForward(unsigned long* _Index, unsigned long _Mask);
+
+		unsigned long result;
+		if (_BitScanForward(&result, (unsigned long)aValue))
+			return result;
+		if (_BitScanForward(&result, (unsigned long)(aValue >> 32)))
+			return result + 32;
+		return -1;
+#else
 		extern unsigned char ::_BitScanForward64(unsigned long* _Index, unsigned __int64 _Mask);
 
 		unsigned long result;
 		if (_BitScanForward64(&result, aValue))
 			return result;
 		return -1;
+#endif
 #else
 		return aValue ? __builtin_ctzll(aValue) : -1;
 #endif

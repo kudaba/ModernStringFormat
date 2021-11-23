@@ -28,8 +28,28 @@ size_t MSF_Strlen(wchar_t const* aString)
     return (size_t)(end - aString);
 }
 //-------------------------------------------------------------------------------------------------
+// Helper to upgrade char/wchar into size_t for optimal copying
 //-------------------------------------------------------------------------------------------------
-void MSF_SplatChars(char* aBuffer, char const* aBufferEnd, char aValue, size_t aCount)
+inline size_t MSF_GrowValue(wchar_t aValue)
+{
+    size_t const aValue32 = aValue | (aValue << 16);
+
+#if INTPTR_MAX == INT32_MAX
+    return aValue32;
+#elif INTPTR_MAX == INT64_MAX
+    return aValue32 | (aValue32 << 32);
+#else
+#error "Unsupported register size for optimal copying"
+#endif
+}
+inline size_t MSF_GrowValue(char aValue)
+{
+    return MSF_GrowValue(wchar_t(aValue | (aValue << 8)));
+}
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+template<typename Char>
+void MSF_SplatCharsT(Char* aBuffer, Char const* aBufferEnd, Char aValue, size_t aCount)
 {
     if (aBuffer + aCount > aBufferEnd)
     {
@@ -37,31 +57,30 @@ void MSF_SplatChars(char* aBuffer, char const* aBufferEnd, char aValue, size_t a
         return;
     }
 
-    // Increment to an 8 byte boundary
-    while ((uintptr_t)aBuffer % 8 != 0 && aCount > 0)
+    size_t constexpr alignment = sizeof(size_t);
+    size_t constexpr sizeDiff = alignment / sizeof(char);
+
+    // Increment to an alignemnt boundary, if not aligned to sizeof(Char) then this will end up doing all the copying very slowly
+    while ((uintptr_t)aBuffer % alignment != 0 && aCount > 0)
     {
         *aBuffer++ = aValue;
         --aCount;
     }
 
-    // Copy in 8 byte blocks
-    if (aCount > 8)
+    // Copy in optimal blocks
+    if (aCount > alignment)
     {
-        size_t const aValue16 = aValue | (aValue << 8);
-        size_t const aValue32 = aValue16 | (aValue16 << 16);
-        size_t const sizeValue = aValue32 | (aValue32 << 32);
-        size_t constexpr sizeDiff = sizeof(size_t);
-
+        size_t const sizeValue = MSF_GrowValue(aValue);
         size_t sizeCount = aCount / sizeDiff;
         size_t* sizeDst = (size_t*)aBuffer;
+
+        aCount -= (sizeCount * sizeDiff);
+        aBuffer += (sizeCount * sizeDiff);
+
         while (sizeCount--)
         {
             *sizeDst++ = sizeValue;
         }
-
-
-        aCount -= (sizeCount * sizeDiff);
-        aBuffer += (sizeCount * sizeDiff);
     }
 
     // copy any remainder
@@ -72,45 +91,14 @@ void MSF_SplatChars(char* aBuffer, char const* aBufferEnd, char aValue, size_t a
     }
 }
 //-------------------------------------------------------------------------------------------------
+void MSF_SplatChars(char* aBuffer, char const* aBufferEnd, char aValue, size_t aCount)
+{
+    MSF_SplatCharsT(aBuffer, aBufferEnd, aValue, aCount);
+}
 //-------------------------------------------------------------------------------------------------
 void MSF_SplatChars(wchar_t* aBuffer, wchar_t const* aBufferEnd, wchar_t aValue, size_t aCount)
 {
-    if (aBuffer + aCount > aBufferEnd)
-    {
-        MSF_ASSERT(aBuffer + aCount < aBufferEnd, "Supplied buffer is not big enough to support splatting %d wide chars. It only has %d wide chars available", aCount, aBufferEnd - aBuffer);
-        return;
-    }
-
-    // Increment to an 8 byte boundary
-    while ((uintptr_t)aBuffer % 8 != 0 && aCount > 0)
-    {
-        *aBuffer++ = aValue;
-        --aCount;
-    }
-
-    // Copy in 8 byte blocks
-    if (aCount > 8)
-    {
-        size_t const aValue32 = aValue | (aValue << 16);
-        size_t const sizeValue = aValue32 | (aValue32 << 32);
-        size_t constexpr sizeDiff = sizeof(size_t) / sizeof(wchar_t);
-
-        size_t sizeCount = aCount / sizeDiff;
-        size_t* sizeDst = (size_t*)aBuffer;
-        while (sizeCount--)
-        {
-            *sizeDst++ = sizeValue;
-        }
-
-        aCount -= sizeCount * sizeDiff;
-        aBuffer += sizeCount * sizeDiff;
-    }
-
-    // copy any remainder
-    while (aCount > 0)
-    {
-        *aBuffer++ = aValue;
-    }
+    MSF_SplatCharsT(aBuffer, aBufferEnd, aValue, aCount);
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------

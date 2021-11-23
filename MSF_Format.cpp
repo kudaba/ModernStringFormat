@@ -325,6 +325,111 @@ namespace MSF_CustomPrint
 					precision = (precision * 10) + (character - '0');
 				}
 				break;
+			case 'I': // look for I[(32|64)](d|i|o|u|x|X)
+				{
+					int advance = 0;
+					if ((anInput[0] == '3' && anInput[1] == '2') ||
+						(anInput[0] == '6' && anInput[1] == '4'))
+					{
+						advance = 2;
+					}
+
+					char const next = anInput[advance];
+					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X')
+					{
+						character = next;
+						anInput += advance + 1;
+					}
+				}
+				goto do_print;
+
+			case 'h': // look for (h|hh)(d|i|o|u|x|X|n) or h(s|c)
+				if (anInput[0] == 'h')
+				{
+					char const next = anInput[1];
+					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n')
+					{
+						// skip hh
+						character = next;
+						anInput += 2;
+					}
+				}
+				else
+				{
+					char const next = anInput[0];
+					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n' ||
+						next == 's' || next == 'c')
+					{
+						// skip h
+						character = next;
+						anInput += 1;
+					}
+				}
+				goto do_print;
+
+			case 'l': // look for (l|ll)(d|i|o|u|x|X|n) or l(s|c|f|F|e|E|a|A|g|G)
+				if (anInput[0] == 'l')
+				{
+					char const next = anInput[1];
+					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n')
+					{
+						// skip ll
+						character = next;
+						anInput += 2;
+					}
+				}
+				else
+				{
+					char const next = anInput[0];
+					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n' ||
+						next == 's' || next == 'c' ||
+						next == 'f' || next == 'F' || next == 'e' || next == 'E' || next == 'a' || next == 'A' || next == 'g' || next == 'G')
+					{
+						// skip l
+						character = next;
+						anInput += 1;
+					}
+				}
+				goto do_print;
+
+			case 'j':
+			case 't':
+			case 'z': // look for (j|t|z)(d|i|o|u|x|X)
+			{
+				char const next = anInput[0];
+				if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X')
+				{
+					// skip l
+					character = next;
+					anInput += 1;
+				}
+			}
+				goto do_print;
+
+			case 'L': // look for L(f|F|e|E|a|A|g|G)
+			{
+				char const next = anInput[0];
+				if (next == 'f' || next == 'F' || next == 'e' || next == 'E' || next == 'a' || next == 'A' || next == 'g' || next == 'G')
+				{
+					// skip l
+					character = next;
+					anInput += 1;
+				}
+			}
+				goto do_print;
+
+			case 'w': // look for w(s|c)
+			{
+				char const next = anInput[0];
+				if (next == 's' || next == 'c')
+				{
+					// skip l
+					character = next;
+					anInput += 1;
+				}
+			}
+				goto do_print;
+
 			default:
 				if (!MSF_IsAsciiAlphaNumeric(character))
 				{
@@ -332,6 +437,8 @@ namespace MSF_CustomPrint
 				}
 				else
 				{
+					do_print:
+
 					aPrintData.myPrintChar = character;
 
 					static_assert(sizeof(aPrintData.myWidth) == 2, "sizeof myWidth changed, update code");

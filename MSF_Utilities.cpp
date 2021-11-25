@@ -3,34 +3,27 @@
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-size_t MSF_Strlen(char const* aString)
-{
-	if (!aString || !*aString)
-		return 0;
-
-	char const* end = aString;
-
-	while (*(++end));
-
-	return (size_t)(end - aString);
-}
-//-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
-size_t MSF_Strlen(wchar_t const* aString)
+template <typename Char>
+size_t MSF_StrlenShared(Char const* aString)
 {
     if (!aString || !*aString)
         return 0;
 
-    wchar_t const* end = aString;
+    Char const* end = aString;
 
     while (*(++end));
 
     return (size_t)(end - aString);
 }
 //-------------------------------------------------------------------------------------------------
+size_t MSF_Strlen(char const* aString) { return MSF_StrlenShared(aString); }
+size_t MSF_Strlen(char16_t const* aString) { return MSF_StrlenShared(aString); }
+size_t MSF_Strlen(char32_t const* aString) { return MSF_StrlenShared(aString); }
+size_t MSF_Strlen(wchar_t const* aString) { return MSF_StrlenShared(aString); }
+//-------------------------------------------------------------------------------------------------
 // Helper to upgrade char/wchar into size_t for optimal copying
 //-------------------------------------------------------------------------------------------------
-inline size_t MSF_GrowValue(wchar_t aValue)
+inline size_t MSF_GrowValue(char16_t aValue)
 {
     size_t const aValue32 = aValue | (aValue << 16);
 
@@ -44,12 +37,12 @@ inline size_t MSF_GrowValue(wchar_t aValue)
 }
 inline size_t MSF_GrowValue(char aValue)
 {
-    return MSF_GrowValue(wchar_t(aValue | (aValue << 8)));
+    return MSF_GrowValue(char16_t(aValue | (aValue << 8)));
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 template<typename Char>
-void MSF_SplatCharsT(Char* aBuffer, Char const* aBufferEnd, Char aValue, size_t aCount)
+void MSF_StrlenShared(Char* aBuffer, Char const* aBufferEnd, Char aValue, size_t aCount)
 {
     if (aBuffer + aCount > aBufferEnd)
     {
@@ -93,12 +86,12 @@ void MSF_SplatCharsT(Char* aBuffer, Char const* aBufferEnd, Char aValue, size_t 
 //-------------------------------------------------------------------------------------------------
 void MSF_SplatChars(char* aBuffer, char const* aBufferEnd, char aValue, size_t aCount)
 {
-    MSF_SplatCharsT(aBuffer, aBufferEnd, aValue, aCount);
+    MSF_StrlenShared(aBuffer, aBufferEnd, aValue, aCount);
 }
 //-------------------------------------------------------------------------------------------------
-void MSF_SplatChars(wchar_t* aBuffer, wchar_t const* aBufferEnd, wchar_t aValue, size_t aCount)
+void MSF_SplatChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16_t aValue, size_t aCount)
 {
-    MSF_SplatCharsT(aBuffer, aBufferEnd, aValue, aCount);
+    MSF_StrlenShared(aBuffer, aBufferEnd, aValue, aCount);
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------

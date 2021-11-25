@@ -799,4 +799,6 @@ intptr_t MSF_FormatString(MSF_StringFormatTemplate<char> const& aStringFormat, c
 }
 
 template class MSF_StringFormatTemplate<char>;
+template class MSF_StringFormatTemplate<char16_t>;
+template class MSF_StringFormatTemplate<char32_t>;
 template class MSF_StringFormatTemplate<wchar_t>;

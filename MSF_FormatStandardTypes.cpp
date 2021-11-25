@@ -2,34 +2,40 @@
 #include "MSF_Assert.h"
 #include "MSF_Utilities.h"
 #include "MSF_ToString.h"
+#include "MSF_UTF.h"
 
 #if MSF_FORMAT_LOCAL_PLATFORM
 
-#undef MSF_ALLOW_LEADING_ZERO
+#undef MSF_STRING_ALLOW_LEADING_ZERO
+#undef MSF_STRING_PRECISION_IS_CHARACTERS
 #undef MSF_POINTER_FORCE_PRECISION
 #undef MSF_POINTER_ADD_PREFIX
 #undef MSF_POINTER_ADD_SIGN_OR_BLANK
 
 #if defined(__ANDROID__)
-#define MSF_ALLOW_LEADING_ZERO 1
+#define MSF_STRING_ALLOW_LEADING_ZERO 1
+#define MSF_STRING_PRECISION_IS_CHARACTERS 0
 #define MSF_POINTER_FORCE_PRECISION 0
 #define MSF_POINTER_ADD_PREFIX 1
 #define MSF_POINTER_ADD_SIGN_OR_BLANK 0
 #define MSF_POINTER_PRINT_CAPS 0
 #elif defined(__APPLE__)
-#define MSF_ALLOW_LEADING_ZERO 1
+#define MSF_STRING_ALLOW_LEADING_ZERO 1
+#define MSF_STRING_PRECISION_IS_CHARACTERS 0
 #define MSF_POINTER_FORCE_PRECISION 0
 #define MSF_POINTER_ADD_PREFIX 1
 #define MSF_POINTER_ADD_SIGN_OR_BLANK 0
 #define MSF_POINTER_PRINT_CAPS 0
 #elif defined(__linux__)
-#define MSF_ALLOW_LEADING_ZERO 0
+#define MSF_STRING_ALLOW_LEADING_ZERO 0
+#define MSF_STRING_PRECISION_IS_CHARACTERS 0
 #define MSF_POINTER_FORCE_PRECISION 0
 #define MSF_POINTER_ADD_PREFIX 1
 #define MSF_POINTER_ADD_SIGN_OR_BLANK 1
 #define MSF_POINTER_PRINT_CAPS 0
 #elif defined(_MSC_VER)
-#define MSF_ALLOW_LEADING_ZERO 1
+#define MSF_STRING_ALLOW_LEADING_ZERO 1
+#define MSF_STRING_PRECISION_IS_CHARACTERS 1
 #define MSF_POINTER_FORCE_PRECISION 1
 #define MSF_POINTER_ADD_PREFIX 0
 #define MSF_POINTER_ADD_SIGN_OR_BLANK 0
@@ -46,43 +52,76 @@
 //-------------------------------------------------------------------------------------------------
 static char locStringLeadingCharacter(MSF_PrintData const& aData)
 {
-#if MSF_ALLOW_LEADING_ZERO
+#if MSF_STRING_ALLOW_LEADING_ZERO
 	return (aData.myFlags & PRINT_ZERO) ? '0' : ' ';
 #else
 	(void)aData;
 	return ' ';
 #endif
 }
-//-------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------- 
 //-------------------------------------------------------------------------------------------------
 namespace MSF_StringFormatChar
 {
+	struct UTF8Char
+	{
+		uint32_t Length;
+		char Data[4];
+	};
+
 	size_t Validate(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
 	{
-		(void)aValue;
 		MSF_ASSERT(aValue.myType & ValidTypes);
-		return MSF_IntMax<uint32_t>(aPrintData.myWidth, 1);
+
+		static_assert(sizeof(UTF8Char) <= sizeof(aPrintData.myUserData), "Not enough storage space for temp data");
+		UTF8Char* utf8Char = (UTF8Char*)&aPrintData.myUserData;
+
+		if (aValue.myType == MSF_StringFormatType::Type8)
+		{
+			utf8Char->Data[0] = aValue.myValue8;
+			utf8Char->Length = 1;
+		}
+		else
+		{
+			uint32_t codePoint;
+			if (aValue.myType == MSF_StringFormatType::Type16 && (aValue.myUserData & MSF_StringFormatType::Char))
+			{
+				char16_t data[2] = { aValue.myValue16, 0 };
+				codePoint = MSF_ReadCodePoint(data).CodePoint;
+			}
+			else
+			{
+				// If not a wchar then just assume the value is a unicode code point
+				codePoint = aValue.myValue32;
+			}
+
+			utf8Char->Length = MSF_WriteCodePoint(codePoint, utf8Char->Data);
+		}
+
+		return MSF_IntMax<uint32_t>(aPrintData.myWidth, utf8Char->Length);
 	}
 	size_t Print(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData)
 	{
-		char newChar = aData.myValue->myType == MSF_StringFormatType::Type64 ? (char)aData.myValue->myValue64 : (char)aData.myValue->myValue32;
 		char* bufferWrite = aBuffer;
+		UTF8Char const utf8Char = *(UTF8Char const*)&aData.myUserData;
 
 		if (aData.myFlags & PRINT_LEFTALIGN)
 		{
-			*bufferWrite++ = newChar;
+			MSF_CopyChars(bufferWrite, aBufferEnd, utf8Char.Data, utf8Char.Length);
+			bufferWrite += utf8Char.Length;
 		}
 
-		if (aData.myWidth > 1)
+		if (aData.myWidth > utf8Char.Length)
 		{
-			size_t const splatChars = aData.myWidth - 1;
+			size_t const splatChars = aData.myWidth - utf8Char.Length;
 			MSF_SplatChars(bufferWrite, aBufferEnd, locStringLeadingCharacter(aData), splatChars);
 			bufferWrite += splatChars;
 		}
 
 		if (!(aData.myFlags & PRINT_LEFTALIGN))
 		{
-			*bufferWrite++ = newChar;
+			MSF_CopyChars(bufferWrite, aBufferEnd, utf8Char.Data, utf8Char.Length);
+			bufferWrite += utf8Char.Length;
 		}
 
 		return bufferWrite - aBuffer;
@@ -95,23 +134,75 @@ namespace MSF_StringFormatString
 	size_t Validate(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
 	{
 		MSF_ASSERT(aValue.myType & ValidTypes);
-		return ValidateStringLength(aPrintData, MSF_Strlen(aValue.myString));
-	}
-	size_t Print(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData)
-	{
-		return PrintString(aBuffer, aBufferEnd, aData, aData.myValue->myString);
+
+		if ((aValue.myUserData & (MSF_StringFormatType::UTF16 | MSF_StringFormatType::UTF32)) == 0)
+			return ValidateStringLength(aPrintData, aValue.myString);
+
+		if (aValue.myUserData & MSF_StringFormatType::UTF16)
+			return ValidateStringLength(aPrintData, aValue.myUTF16String);
+
+		return ValidateStringLength(aPrintData, aValue.myUTF32String);
 	}
 
-	size_t ValidateStringLength(MSF_PrintData& aPrintData, size_t aLength)
+	size_t ValidateStringLength(MSF_PrintData& aPrintData, char const* aString)
 	{
-		aPrintData.myUserData = aLength;
+		aPrintData.myUserData = MSF_Strlen(aString);
 
 		if (aPrintData.myFlags & PRINT_PRECISION)
 		{
-			aPrintData.myUserData = MSF_IntMin<size_t>(aPrintData.myUserData, aPrintData.myPrecision);
+			aPrintData.myUserData = MSF_IntMin<uint64_t>(aPrintData.myUserData, aPrintData.myPrecision);
 		}
 
-		return MSF_IntMax<size_t>(aPrintData.myUserData, aPrintData.myWidth);
+		return MSF_IntMax<size_t>((size_t)aPrintData.myUserData, aPrintData.myWidth);
+	}
+
+	template <typename Char>
+	size_t ValidateStringLengthShared(MSF_PrintData& aPrintData, Char const* aString)
+	{
+		MSF_CharactersWritten written;
+
+		if (aPrintData.myFlags & PRINT_PRECISION)
+		{
+#if MSF_STRING_PRECISION_IS_CHARACTERS
+			written = MSF_UTFCopyLength<char>(aString, aPrintData.myPrecision);
+#else
+			written = MSF_UTFCopy((char*)nullptr, aPrintData.myPrecision, aString);
+#endif
+		}
+		else
+		{
+			written = MSF_UTFCopyLength<char>(aString);
+		}
+
+#if MSF_STRING_PRECISION_IS_CHARACTERS
+		aPrintData.myUserData = written.Characters;
+
+		size_t elementsRequired = written.Elements;
+		if (written.Characters < aPrintData.myWidth)
+		{
+			elementsRequired += aPrintData.myWidth - written.Characters;
+		}
+		return elementsRequired;
+#else
+		aPrintData.myUserData = written.Elements;
+
+		return MSF_IntMax<size_t>(written.Elements, aPrintData.myWidth);
+#endif
+	}
+
+	size_t ValidateStringLength(MSF_PrintData& aPrintData, char16_t const* aString) { return ValidateStringLengthShared(aPrintData, aString); }
+	size_t ValidateStringLength(MSF_PrintData& aPrintData, char32_t const* aString) { return ValidateStringLengthShared(aPrintData, aString); }
+	size_t ValidateStringLength(MSF_PrintData& aPrintData, wchar_t const* aString) { return ValidateStringLengthShared(aPrintData, aString); }
+
+	size_t Print(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData)
+	{
+		if ((aData.myValue->myUserData & (MSF_StringFormatType::UTF16 | MSF_StringFormatType::UTF32)) == 0)
+			return PrintString(aBuffer, aBufferEnd, aData, aData.myValue->myString);
+
+		if (aData.myValue->myUserData & MSF_StringFormatType::UTF16)
+			return PrintString(aBuffer, aBufferEnd, aData, aData.myValue->myUTF16String);
+
+		return PrintString(aBuffer, aBufferEnd, aData, aData.myValue->myUTF32String);
 	}
 
 	size_t PrintString(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, char const* aString)
@@ -119,27 +210,61 @@ namespace MSF_StringFormatString
 		char* bufferWrite = aBuffer;
 		if (!(aData.myFlags & PRINT_LEFTALIGN) && aData.myWidth > aData.myUserData)
 		{
-			size_t const splatChars = aData.myWidth - aData.myUserData;
+			size_t const splatChars = size_t(aData.myWidth - aData.myUserData);
 			MSF_SplatChars(bufferWrite, aBufferEnd, locStringLeadingCharacter(aData), splatChars);
 			bufferWrite += splatChars;
 		}
 
 		if (aData.myUserData > 0)
 		{
-			size_t const copyChars = aData.myUserData;
+			size_t const copyChars = (size_t)aData.myUserData;
 			MSF_CopyChars(bufferWrite, aBufferEnd, aString, copyChars);
 			bufferWrite += copyChars;
 		}
 
 		if (aData.myFlags & PRINT_LEFTALIGN && aData.myWidth > aData.myUserData)
 		{
-			size_t const splatChars = aData.myWidth - aData.myUserData;
+			size_t const splatChars = size_t(aData.myWidth - aData.myUserData);
 			MSF_SplatChars(bufferWrite, aBufferEnd, locStringLeadingCharacter(aData), splatChars);
 			bufferWrite += splatChars;
 		}
 
 		return bufferWrite - aBuffer;
 	}
+
+	template <typename Char>
+	size_t PrintStringShared(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, Char const* aString)
+	{
+		char* bufferWrite = aBuffer;
+		if (!(aData.myFlags & PRINT_LEFTALIGN) && aData.myWidth > aData.myUserData)
+		{
+			size_t const splatChars = size_t(aData.myWidth - aData.myUserData);
+			MSF_SplatChars(bufferWrite, aBufferEnd, locStringLeadingCharacter(aData), splatChars);
+			bufferWrite += splatChars;
+		}
+
+		if (aData.myUserData > 0)
+		{
+#if MSF_STRING_PRECISION_IS_CHARACTERS
+			bufferWrite += MSF_UTFCopy(bufferWrite, aBufferEnd - bufferWrite, aString, (size_t)aData.myUserData).Elements;
+#else
+			bufferWrite += MSF_UTFCopy(bufferWrite, (size_t)aData.myUserData, aString).Elements;
+#endif
+		}
+
+		if (aData.myFlags & PRINT_LEFTALIGN && aData.myWidth > aData.myUserData)
+		{
+			size_t const splatChars = size_t(aData.myWidth - aData.myUserData);
+			MSF_SplatChars(bufferWrite, aBufferEnd, locStringLeadingCharacter(aData), splatChars);
+			bufferWrite += splatChars;
+		}
+
+		return bufferWrite - aBuffer;
+	}
+
+	size_t PrintString(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, char16_t const* aString) { return PrintStringShared(aBuffer, aBufferEnd, aData, aString); }
+	size_t PrintString(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, char32_t const* aString) { return PrintStringShared(aBuffer, aBufferEnd, aData, aString); }
+	size_t PrintString(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, wchar_t const* aString) { return PrintStringShared(aBuffer, aBufferEnd, aData, aString); }
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------

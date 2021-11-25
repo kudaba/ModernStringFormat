@@ -22,8 +22,16 @@
 //-------------------------------------------------------------------------------------------------
 // Allow leading character to be zeroes, when requested, for string and character printing.
 //-------------------------------------------------------------------------------------------------
-#if !MSF_ALLOW_LEADING_ZERO
-#define MSF_ALLOW_LEADING_ZERO 1
+#if !MSF_STRING_ALLOW_LEADING_ZERO
+#define MSF_STRING_ALLOW_LEADING_ZERO 1
+#endif
+
+//-------------------------------------------------------------------------------------------------
+// Whether to treat the precision limit, when printing strings, to limit the number of characters
+// written, or limit the number of bytes written
+//-------------------------------------------------------------------------------------------------
+#if !MSF_STRING_PRECISION_IS_CHARACTERS
+#define MSF_STRING_PRECISION_IS_CHARACTERS 1
 #endif
 
 //-------------------------------------------------------------------------------------------------

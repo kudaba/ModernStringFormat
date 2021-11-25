@@ -19,10 +19,16 @@ namespace MSF_StringFormatString
 	static const uint32_t ValidTypes = MSF_StringFormatType::TypeString;
 
 	size_t Validate(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue);
-	size_t Print(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData);
+	size_t ValidateStringLength(MSF_PrintData& aPrintData, char const* aString);
+	size_t ValidateStringLength(MSF_PrintData& aPrintData, char16_t const* aString);
+	size_t ValidateStringLength(MSF_PrintData& aPrintData, char32_t const* aString);
+	size_t ValidateStringLength(MSF_PrintData& aPrintData, wchar_t const* aString);
 
-	size_t ValidateStringLength(MSF_PrintData& aPrintData, size_t aLength);
+	size_t Print(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData);
 	size_t PrintString(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, char const* aString);
+	size_t PrintString(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, char16_t const* aString);
+	size_t PrintString(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, char32_t const* aString);
+	size_t PrintString(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, wchar_t const* aString);
 }
 
 //-------------------------------------------------------------------------------------------------

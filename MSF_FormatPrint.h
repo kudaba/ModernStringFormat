@@ -32,7 +32,7 @@ struct MSF_PrintData
 	size_t myMaxLength; // max length required, can be an estimate but must never be too low.
 
 	// store any data you may need later
-	mutable size_t myUserData;
+	mutable uint64_t myUserData;
 
 	// %<width>.<precision>
 	uint16_t myWidth;

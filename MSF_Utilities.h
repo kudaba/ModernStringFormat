@@ -56,13 +56,15 @@ constexpr Type MSF_IntAbs(Type aValue)
 // Simple string length functions. Not using std versions to allow for link time optimizations
 //-------------------------------------------------------------------------------------------------
 extern size_t MSF_Strlen(char const* aString);
+extern size_t MSF_Strlen(char16_t const* aString);
+extern size_t MSF_Strlen(char32_t const* aString);
 extern size_t MSF_Strlen(wchar_t const* aString);
 
 //-------------------------------------------------------------------------------------------------
 // This is equivalent to memset but safe by default.
 //-------------------------------------------------------------------------------------------------
 extern void MSF_SplatChars(char* aBuffer, char const* aBufferEnd, char aValue, size_t aCount);
-extern void MSF_SplatChars(wchar_t* aBuffer, wchar_t const* aBufferEnd, wchar_t aValue, size_t aCount);
+extern void MSF_SplatChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16_t aValue, size_t aCount);
 
 //-------------------------------------------------------------------------------------------------
 // This is equivalent to memmove but safe by default

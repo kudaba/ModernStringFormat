@@ -23,17 +23,19 @@ size_t MSF_Strlen(wchar_t const* aString) { return MSF_StrlenShared(aString); }
 //-------------------------------------------------------------------------------------------------
 // Helper to upgrade char/wchar into size_t for optimal copying
 //-------------------------------------------------------------------------------------------------
-inline size_t MSF_GrowValue(char16_t aValue)
+inline size_t MSF_GrowValue(char32_t aValue)
 {
-    size_t const aValue32 = aValue | (aValue << 16);
-
 #if INTPTR_MAX == INT32_MAX
-    return aValue32;
+    return aValue;
 #elif INTPTR_MAX == INT64_MAX
-    return aValue32 | (aValue32 << 32);
+    return aValue | (size_t(aValue) << 32);
 #else
 #error "Unsupported register size for optimal copying"
 #endif
+}
+inline size_t MSF_GrowValue(char16_t aValue)
+{
+    return MSF_GrowValue(char32_t(aValue | (aValue << 16)));
 }
 inline size_t MSF_GrowValue(char aValue)
 {
@@ -42,7 +44,7 @@ inline size_t MSF_GrowValue(char aValue)
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 template<typename Char>
-void MSF_StrlenShared(Char* aBuffer, Char const* aBufferEnd, Char aValue, size_t aCount)
+void MSF_SplatCharsShared(Char* aBuffer, Char const* aBufferEnd, Char aValue, size_t aCount)
 {
     if (aBuffer + aCount > aBufferEnd)
     {
@@ -51,7 +53,7 @@ void MSF_StrlenShared(Char* aBuffer, Char const* aBufferEnd, Char aValue, size_t
     }
 
     size_t constexpr alignment = sizeof(size_t);
-    size_t constexpr sizeDiff = alignment / sizeof(char);
+    size_t constexpr sizeDiff = alignment / sizeof(Char);
 
     // Increment to an alignemnt boundary, if not aligned to sizeof(Char) then this will end up doing all the copying very slowly
     while ((uintptr_t)aBuffer % alignment != 0 && aCount > 0)
@@ -86,30 +88,36 @@ void MSF_StrlenShared(Char* aBuffer, Char const* aBufferEnd, Char aValue, size_t
 //-------------------------------------------------------------------------------------------------
 void MSF_SplatChars(char* aBuffer, char const* aBufferEnd, char aValue, size_t aCount)
 {
-    MSF_StrlenShared(aBuffer, aBufferEnd, aValue, aCount);
+    MSF_SplatCharsShared(aBuffer, aBufferEnd, aValue, aCount);
 }
 //-------------------------------------------------------------------------------------------------
 void MSF_SplatChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16_t aValue, size_t aCount)
 {
-    MSF_StrlenShared(aBuffer, aBufferEnd, aValue, aCount);
+    MSF_SplatCharsShared(aBuffer, aBufferEnd, aValue, aCount);
+}
+//-------------------------------------------------------------------------------------------------
+void MSF_SplatChars(char32_t* aBuffer, char32_t const* aBufferEnd, char32_t aValue, size_t aCount)
+{
+    MSF_SplatCharsShared(aBuffer, aBufferEnd, aValue, aCount);
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, void const* aSource, size_t aSourceSize)
+template <typename Char>
+void MSF_CopyCharsShared(Char* aBuffer, Char const* aBufferEnd, Char const* aSource, size_t aSourceLength)
 {
-    if (aBuffer + aSourceSize > aBufferEnd)
+    if (aBuffer + aSourceLength > aBufferEnd)
     {
-        MSF_ASSERT(aBuffer + aSourceSize < aBufferEnd, "Supplied buffer is not big enough to support copying %d bytes. It only has %d bytes available", aSourceSize, aBufferEnd - aBuffer);
+        MSF_ASSERT(aBuffer + aSourceLength < aBufferEnd, "Supplied buffer is not big enough to support copying %d bytes. It only has %d bytes available", aSourceLength, aBufferEnd - aBuffer);
         return;
     }
 
-    // Copy in local word sized blocks. The worst case for modern cpus is it will be a bit slower
+    // Copy in local register sized blocks. The worst case for modern cpus is it will be a bit slower
     // if the buffers are unaligned
 
-    size_t sizeCount = aSourceSize / sizeof(size_t);
-    size_t aCharCount = aSourceSize - (sizeCount * sizeof(size_t));
+    size_t sizeCount = (aSourceLength * sizeof(Char)) / sizeof(size_t);
+    size_t aCharCount = aSourceLength - (sizeCount * sizeof(size_t) / sizeof(Char));
 
-    if (aBuffer <= aSource || (char*)aBuffer > (char const*)aSource + aSourceSize)
+    if (aBuffer <= aSource || aBuffer > aSource + aSourceLength)
     {
         size_t* sizeDst = (size_t*)aBuffer;
         size_t const* sizeSrc = (size_t const*)aSource;
@@ -118,8 +126,8 @@ void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, void const* aSource, s
         {
             *sizeDst++ = *sizeSrc++;
         }
-        char* charDst = (char*)sizeDst;
-        char const* charSrc = (char const*)sizeSrc;
+        Char* charDst = (Char*)sizeDst;
+        Char const* charSrc = (Char const*)sizeSrc;
         while (aCharCount--)
         {
             *charDst++ = *charSrc++;
@@ -127,18 +135,33 @@ void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, void const* aSource, s
     }
     else
     {
-        size_t* sizeDst = (size_t*)((char*)aBuffer + aSourceSize);
-        size_t const* sizeSrc = (size_t const*)((char const*)aSource + aSourceSize);
+        size_t* sizeDst = (size_t*)(aBuffer + aSourceLength);
+        size_t const* sizeSrc = (size_t const*)(aSource + aSourceLength);
 
         while (sizeCount--)
         {
             *--sizeDst = *--sizeSrc;
         }
-        char* charDst = (char*)sizeDst;
-        char const* charSrc = (char const*)sizeSrc;
+        Char* charDst = (Char*)sizeDst;
+        Char const* charSrc = (Char const*)sizeSrc;
         while (aCharCount--)
         {
             *--charDst = *--charSrc;
         }
     }
+}
+//-------------------------------------------------------------------------------------------------
+void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, char const* aSource, size_t aSourceLength)
+{
+    MSF_CopyCharsShared(aBuffer, aBufferEnd, aSource, aSourceLength);
+}
+//-------------------------------------------------------------------------------------------------
+void MSF_CopyChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16_t const* aSource, size_t aSourceLength)
+{
+    MSF_CopyCharsShared(aBuffer, aBufferEnd, aSource, aSourceLength);
+}
+//-------------------------------------------------------------------------------------------------
+void MSF_CopyChars(char32_t* aBuffer, char32_t const* aBufferEnd, char32_t const* aSource, size_t aSourceLength)
+{
+    MSF_CopyCharsShared(aBuffer, aBufferEnd, aSource, aSourceLength);
 }

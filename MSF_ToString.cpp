@@ -9,11 +9,11 @@
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-template<typename Type>
-MSF_UnsignedToString<Type>::MSF_UnsignedToString(Type aValue, uint32_t aRadix, char aHexStart)
+template<typename Type, typename Char>
+MSF_UnsignedToString<Type, Char>::MSF_UnsignedToString(Type aValue, uint32_t aRadix, char aHexStart)
 {
-    char* end = myBuffer + MaxLength;
-    char* string = end;
+    Char* end = myBuffer + MaxLength;
+    Char* string = end;
     *string = '\0';
 
     // no matter the radix, if the value is 0 return "0".
@@ -66,13 +66,13 @@ MSF_UnsignedToString<Type>::MSF_UnsignedToString(Type aValue, uint32_t aRadix, c
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-template<typename SignedType, typename UnsignedType>
-MSF_SignedToString<SignedType, UnsignedType>::MSF_SignedToString(SignedType aValue, uint32_t aRadix, char aHexStart)
-    : MSF_UnsignedToString<UnsignedType>(aRadix == 10 ? MSF_IntAbs(aValue) : aValue, aRadix, aHexStart)
+template<typename SignedType, typename UnsignedType, typename Char>
+MSF_SignedToString<SignedType, UnsignedType, Char>::MSF_SignedToString(SignedType aValue, uint32_t aRadix, char aHexStart)
+    : MSF_UnsignedToString<UnsignedType, Char>(aRadix == 10 ? MSF_IntAbs(aValue) : aValue, aRadix, aHexStart)
 {
     if (aRadix == 10 && aValue < 0)
     {
-        char* string = this->myBuffer + MSF_UnsignedToString<UnsignedType>::MaxLength - this->myLength;
+        Char* string = this->myBuffer + MSF_UnsignedToString<UnsignedType>::MaxLength - this->myLength;
         MSF_ASSERT(string > this->myBuffer);
         *(--string) = '-'; // we know it's coming from buffer so we're good to write
         ++this->myLength;
@@ -82,33 +82,54 @@ MSF_SignedToString<SignedType, UnsignedType>::MSF_SignedToString(SignedType aVal
 //-------------------------------------------------------------------------------------------------
 // Explicit template instantiation of supported types
 //-------------------------------------------------------------------------------------------------
-template struct MSF_UnsignedToString<uint8_t>;
-template struct MSF_UnsignedToString<uint16_t>;
-template struct MSF_UnsignedToString<uint32_t>;
-template struct MSF_UnsignedToString<uint64_t>;
-template struct MSF_SignedToString<int8_t, uint8_t>;
-template struct MSF_SignedToString<int16_t, uint16_t>;
-template struct MSF_SignedToString<int32_t, uint32_t>;
-template struct MSF_SignedToString<int64_t, uint64_t>;
+template struct MSF_UnsignedToString<uint8_t, char>;
+template struct MSF_UnsignedToString<uint16_t, char>;
+template struct MSF_UnsignedToString<uint32_t, char>;
+template struct MSF_UnsignedToString<uint64_t, char>;
+template struct MSF_SignedToString<int8_t, uint8_t, char>;
+template struct MSF_SignedToString<int16_t, uint16_t, char>;
+template struct MSF_SignedToString<int32_t, uint32_t, char>;
+template struct MSF_SignedToString<int64_t, uint64_t, char>;
+
+template struct MSF_UnsignedToString<uint8_t, char16_t>;
+template struct MSF_UnsignedToString<uint16_t, char16_t>;
+template struct MSF_UnsignedToString<uint32_t, char16_t>;
+template struct MSF_UnsignedToString<uint64_t, char16_t>;
+template struct MSF_SignedToString<int8_t, uint8_t, char16_t>;
+template struct MSF_SignedToString<int16_t, uint16_t, char16_t>;
+template struct MSF_SignedToString<int32_t, uint32_t, char16_t>;
+template struct MSF_SignedToString<int64_t, uint64_t, char16_t>;
+
+template struct MSF_UnsignedToString<uint8_t, char32_t>;
+template struct MSF_UnsignedToString<uint16_t, char32_t>;
+template struct MSF_UnsignedToString<uint32_t, char32_t>;
+template struct MSF_UnsignedToString<uint64_t, char32_t>;
+template struct MSF_SignedToString<int8_t, uint8_t, char32_t>;
+template struct MSF_SignedToString<int16_t, uint16_t, char32_t>;
+template struct MSF_SignedToString<int32_t, uint32_t, char32_t>;
+template struct MSF_SignedToString<int64_t, uint64_t, char32_t>;
 
 //-------------------------------------------------------------------------------------------------
 // Implementation of double to string.  Needs to be cleaned up a bit.
 // Currently very fast but it's not 100% conformant and doesn't support 'a'/'A'
 //-------------------------------------------------------------------------------------------------
-int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
+template <typename Char>
+int MSF_DoubleToStringShared(double aValue, Char* aBuffer, size_t aBufferLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
 {
-    char const* error = nullptr;
+    Char const* error = nullptr;
 
     if (std::isinf(aValue))
     {
+        static Char const errNegInf[] = { '-', 'I', 'n', 'f', 0 };
         if (aValue < 0)
-            error = "-Inf";
+            error = errNegInf;
         else
-            error = "Inf";
+            error = &errNegInf[1];
     }
     else if (std::isnan(aValue))
     {
-        error = "NaN";
+        static Char const errNaN[] = { 'N', 'a', 'N', 0 };
+        error = errNaN;
     }
 
     if (error != nullptr)
@@ -139,21 +160,21 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
     uint32_t const worksiz = int((M_LN2 / M_LN10) * DBL_MAX_EXP) + 8;
 
     // for fractional part
-    char  fwork[worksiz];
-    char* fw = fwork;
+    Char  fwork[worksiz];
+    Char* fw = fwork;
 
     // for integer part
-    char  iwork[worksiz];
-    char* iworkBufferLength = &iwork[sizeof(iwork) - 1];
-    char* iw = iworkBufferLength;
+    Char  iwork[worksiz];
+    Char* iworkBufferLength = &iwork[sizeof(iwork) / sizeof(Char) - 1];
+    Char* iw = iworkBufferLength;
     *iw = 0;
 
     // for exponent part
 
     uint32_t const eworksiz = int(M_LN2 * DBL_DIG) + 8;
-    char  ework[eworksiz];
-    char* eworkBufferLength = &ework[sizeof(ework) - 1];
-    char* ew = eworkBufferLength;
+    Char  ework[eworksiz];
+    Char* eworkBufferLength = &ework[sizeof(ework) / sizeof(Char) - 1];
+    Char* ew = eworkBufferLength;
     *ew = 0;
 
     // grab sign & make non-negative
@@ -265,16 +286,16 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
                 doRoundUp = false;
 
                 uint32_t adj = test - aPrecision;
-                for (char* f = &fwork[fwidth - 1]; f >= fwork && adj > 0; --adj, --f)
+                for (Char* f = &fwork[fwidth - 1]; f >= fwork && adj > 0; --adj, --f)
                 {
                     --fw;
                     --fwidth;
-                    char ch = *f;
+                    Char ch = *f;
                     *f = 0;
                     if (adj == 1 && ch >= '5') // properly round: unavoidable propagation
                     {
                         int carry = 1;
-                        char* p;
+                        Char* p;
                         for (p = f - 1; p >= fwork && carry; --p)
                         {
                             ++* p;
@@ -315,7 +336,7 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
                 int remainingPrecision = aPrecision;
                 if (remainingPrecision)
                 {
-                    char* ffix = fw - 1;
+                    Char* ffix = fw - 1;
                     while (*ffix == '9' && ffix >= fwork)
                     {
                         *ffix-- = '0';
@@ -338,7 +359,7 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
                 if (!remainingPrecision || add)
                 {
                     int carry = 1;
-                    char* p;
+                    Char* p;
                     for (p = iworkBufferLength - 1; p >= iw && carry; --p)
                     {
                         ++* p;
@@ -390,7 +411,7 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
             for (uint32_t i = 0; i < aPrecision; ++i)
             {
                 ffpart = modf(ffpart * 10.0, &ifpart);
-                *fw++ = '0' + char(ifpart);
+                *fw++ = '0' + Char(ifpart);
                 ++fwidth;
             }
             // round up?
@@ -399,7 +420,7 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
                 bool add = false;
                 if (aPrecision)
                 {
-                    char* ffix = fw - 1;
+                    Char* ffix = fw - 1;
                     while (*ffix == '9' && ffix >= fwork)
                     {
                         *ffix-- = '0';
@@ -427,7 +448,7 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
         }
 
         // convert exponent
-        char const eneg = exp < 0;
+        bool const eneg = exp < 0;
         if (eneg) exp = -exp;
 
         while (exp > 0)
@@ -449,7 +470,7 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
         ewidth += 2;
 
         // convert the one-digit integer part
-        *--iw = '0' + char(ipart);
+        *--iw = '0' + Char(ipart);
         ++iwidth;
     }
 
@@ -458,7 +479,7 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
         // remove trailing zeroes when not in prefix mode
         if (!(someFlags & PRINT_PREFIX))
         {
-            for (char* p = fw - 1; p >= fwork && *p == '0'; --p)
+            for (Char* p = fw - 1; p >= fwork && *p == '0'; --p)
             {
                 *p = 0;
                 --fw;
@@ -521,8 +542,8 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
     int pad = aWidth - fmtwidth;
     if (pad < 0) pad = 0;
 
-    char* fmt = aBuffer;
-    char const* fmtEnd = aBuffer + aBufferLength;
+    Char* fmt = aBuffer;
+    Char const* fmtEnd = aBuffer + aBufferLength;
     if (pad && !(someFlags & (PRINT_LEFTALIGN | PRINT_ZERO)))
     {
         MSF_SplatChars(fmt, fmtEnd, ' ', pad);
@@ -559,4 +580,17 @@ int MSF_DoubleToString(double aValue, char* aBuffer, size_t aBufferLength, char 
     *fmt = 0;
 
     return uint32_t(fmt - aBuffer);
+}
+
+int MSF_DoubleToString(double aValue, char* anOutput, size_t aLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
+{
+    return MSF_DoubleToStringShared(aValue, anOutput, aLength, aFormat, aWidth, aPrecision, someFlags);
+}
+int MSF_DoubleToString(double aValue, char16_t* anOutput, size_t aLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
+{
+    return MSF_DoubleToStringShared(aValue, anOutput, aLength, aFormat, aWidth, aPrecision, someFlags);
+}
+int MSF_DoubleToString(double aValue, char32_t* anOutput, size_t aLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
+{
+    return MSF_DoubleToStringShared(aValue, anOutput, aLength, aFormat, aWidth, aPrecision, someFlags);
 }

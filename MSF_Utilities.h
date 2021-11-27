@@ -12,13 +12,17 @@
 // print characters so it doesn't not need to be UTF8 compatible.
 // Note: Casting to unsigned so I can do sub+cmp instead of cmp+cmp
 //-------------------------------------------------------------------------------------------------
-constexpr bool MSF_IsAsciiAlphaNumeric(char aCharacter) { return (uint8_t(aCharacter - 'A') < 26) || (uint8_t(aCharacter - 'a') < 26); }
+constexpr bool MSF_IsAsciiAlphaNumeric(char aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
+constexpr bool MSF_IsAsciiAlphaNumeric(char16_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
+constexpr bool MSF_IsAsciiAlphaNumeric(char32_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
 
 //-------------------------------------------------------------------------------------------------
 // Test if a character is a digit.
 // Note: Casting to unsigned so I can do sub+cmp instead of cmp+cmp
 //-------------------------------------------------------------------------------------------------
-constexpr bool MSF_IsDigit(char aCharacter) { return (uint8_t(aCharacter - '0') < 10); }
+constexpr bool MSF_IsDigit(char aCharacter) { return (uint32_t(aCharacter - '0') < 10); }
+constexpr bool MSF_IsDigit(char16_t aCharacter) { return (uint32_t(aCharacter - '0') < 10); }
+constexpr bool MSF_IsDigit(char32_t aCharacter) { return (uint32_t(aCharacter - '0') < 10); }
 
 //-------------------------------------------------------------------------------------------------
 // Get the maximum value between two integers. This is done branchless for performance
@@ -65,8 +69,11 @@ extern size_t MSF_Strlen(wchar_t const* aString);
 //-------------------------------------------------------------------------------------------------
 extern void MSF_SplatChars(char* aBuffer, char const* aBufferEnd, char aValue, size_t aCount);
 extern void MSF_SplatChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16_t aValue, size_t aCount);
+extern void MSF_SplatChars(char32_t* aBuffer, char32_t const* aBufferEnd, char32_t aValue, size_t aCount);
 
 //-------------------------------------------------------------------------------------------------
 // This is equivalent to memmove but safe by default
 //-------------------------------------------------------------------------------------------------
-extern void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, void const* aSource, size_t aSourceSize);
+extern void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, char const* aSource, size_t aSourceLength);
+extern void MSF_CopyChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16_t const* aSource, size_t aSourceLength);
+extern void MSF_CopyChars(char32_t* aBuffer, char32_t const* aBufferEnd, char32_t const* aSource, size_t aSourceLength);

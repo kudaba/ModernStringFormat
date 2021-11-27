@@ -7,7 +7,7 @@
 // The returned value is the start of the string content, not the buffer. This is an optimization
 // to prevent having to reverse the characters in the string.
 //-------------------------------------------------------------------------------------------------
-template <typename Type>
+template <typename Type, typename Char = char>
 struct MSF_UnsignedToString
 {
 	enum
@@ -19,31 +19,49 @@ struct MSF_UnsignedToString
 	MSF_UnsignedToString(Type aValue, uint32_t aRadix = 10, char aHexStart = 'a');
 
 	uint32_t Length() const { return myLength; }
-	operator char const* () const { return myBuffer + MaxLength - myLength; }
-	char const* GetString() const { return myBuffer + MaxLength - myLength; }
+	operator Char const* () const { return myBuffer + MaxLength - myLength; }
+	Char const* GetString() const { return myBuffer + MaxLength - myLength; }
 
 protected:
 	uint32_t myLength;
-	char myBuffer[BufferLength];
+	Char myBuffer[BufferLength];
 };
 
 //-------------------------------------------------------------------------------------------------
 // signed intergers only supports base 10, any other base will be the same as unsigned
 //-------------------------------------------------------------------------------------------------
-template<typename SignedType, typename UnsignedType>
-struct MSF_SignedToString : public MSF_UnsignedToString<UnsignedType>
+template<typename SignedType, typename UnsignedType, typename Char = char>
+struct MSF_SignedToString : public MSF_UnsignedToString<UnsignedType, Char>
 {
 	MSF_SignedToString(SignedType aValue, uint32_t aRadix = 10, char aHexStart = 'a');
 };
 
-extern template struct MSF_UnsignedToString<uint8_t>;
-extern template struct MSF_UnsignedToString<uint16_t>;
-extern template struct MSF_UnsignedToString<uint32_t>;
-extern template struct MSF_UnsignedToString<uint64_t>;
-extern template struct MSF_SignedToString<int8_t, uint8_t>;
-extern template struct MSF_SignedToString<int16_t, uint16_t>;
-extern template struct MSF_SignedToString<int32_t, uint32_t>;
-extern template struct MSF_SignedToString<int64_t, uint64_t>;
+extern template struct MSF_UnsignedToString<uint8_t, char>;
+extern template struct MSF_UnsignedToString<uint16_t, char>;
+extern template struct MSF_UnsignedToString<uint32_t, char>;
+extern template struct MSF_UnsignedToString<uint64_t, char>;
+extern template struct MSF_SignedToString<int8_t, uint8_t, char>;
+extern template struct MSF_SignedToString<int16_t, uint16_t, char>;
+extern template struct MSF_SignedToString<int32_t, uint32_t, char>;
+extern template struct MSF_SignedToString<int64_t, uint64_t, char>;
+
+extern template struct MSF_UnsignedToString<uint8_t, char16_t>;
+extern template struct MSF_UnsignedToString<uint16_t, char16_t>;
+extern template struct MSF_UnsignedToString<uint32_t, char16_t>;
+extern template struct MSF_UnsignedToString<uint64_t, char16_t>;
+extern template struct MSF_SignedToString<int8_t, uint8_t, char16_t>;
+extern template struct MSF_SignedToString<int16_t, uint16_t, char16_t>;
+extern template struct MSF_SignedToString<int32_t, uint32_t, char16_t>;
+extern template struct MSF_SignedToString<int64_t, uint64_t, char16_t>;
+
+extern template struct MSF_UnsignedToString<uint8_t, char32_t>;
+extern template struct MSF_UnsignedToString<uint16_t, char32_t>;
+extern template struct MSF_UnsignedToString<uint32_t, char32_t>;
+extern template struct MSF_UnsignedToString<uint64_t, char32_t>;
+extern template struct MSF_SignedToString<int8_t, uint8_t, char32_t>;
+extern template struct MSF_SignedToString<int16_t, uint16_t, char32_t>;
+extern template struct MSF_SignedToString<int32_t, uint32_t, char32_t>;
+extern template struct MSF_SignedToString<int64_t, uint64_t, char32_t>;
 
 //-------------------------------------------------------------------------------------------------
 // Explicitly implementing supported types only to help reduce compiler errors when using incorrect types
@@ -76,6 +94,8 @@ inline MSF_SignedToString<int64_t, uint64_t> MSF_IntegerToString(int64_t aValue,
 // aFlags - See MSF_PrintFlags.  These are equivalent to the printf flags "-+ 0#"
 //-------------------------------------------------------------------------------------------------
 int MSF_DoubleToString(double aValue, char* anOutput, size_t aLength, char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0);
+int MSF_DoubleToString(double aValue, char16_t* anOutput, size_t aLength, char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0);
+int MSF_DoubleToString(double aValue, char32_t* anOutput, size_t aLength, char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0);
 
 template<uint32_t Size>
 int MSF_DoubleToString(double aValue, char(&anOutput)[Size], char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0)
@@ -83,4 +103,23 @@ int MSF_DoubleToString(double aValue, char(&anOutput)[Size], char aFormat = 'f',
 	return MSF_DoubleToString(aValue, anOutput, Size, aFormat, aWidth, aPrecision, someFlags);
 }
 
-#define MSF_FloatToString MSF_DoubleToString;
+template<uint32_t Size>
+int MSF_DoubleToString(double aValue, char16_t(&anOutput)[Size], char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0)
+{
+	return MSF_DoubleToString(aValue, anOutput, Size, aFormat, aWidth, aPrecision, someFlags);
+}
+
+template<uint32_t Size>
+int MSF_DoubleToString(double aValue, char32_t(&anOutput)[Size], char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0)
+{
+	return MSF_DoubleToString(aValue, anOutput, Size, aFormat, aWidth, aPrecision, someFlags);
+}
+
+// Since there are no special characters, all string types will report the same length requirements
+inline int MSF_DoubleToStringLength(double aValue, char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0)
+{
+	return MSF_DoubleToString(aValue, (char*)nullptr, 0, aFormat, aWidth, aPrecision, someFlags);
+}
+
+#define MSF_FloatToString MSF_DoubleToString
+#define MSF_FloatToStringLength MSF_DoubleToStringLength

@@ -62,6 +62,12 @@ MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, cha
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 
+template <typename CharOut, size_t Size, typename CharIn>
+MSF_CharactersWritten MSF_UTFCopy(CharOut(&aStringOut)[Size], CharIn const* aStringIn, size_t aCharacterLimit = SIZE_MAX)
+{
+	return MSF_UTFCopy(aStringOut, Size, aStringIn, aCharacterLimit);
+}
+
 //-------------------------------------------------------------------------------------------------
 // Used hidden functionality in conversion functions to count the required characters
 //-------------------------------------------------------------------------------------------------

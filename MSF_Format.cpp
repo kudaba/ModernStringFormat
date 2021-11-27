@@ -1,5 +1,6 @@
 #include "MSF_FormatStandardTypes.h"
 #include "MSF_Assert.h"
+#include "MSF_UTF.h"
 #include "MSF_Utilities.h"
 
 //-------------------------------------------------------------------------------------------------
@@ -85,8 +86,7 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	struct RegisteredChar
 	{
-		ValidateFunc Validate;
-		PrintFunc Print;
+		MSF_CustomPrinter Printer;
 		uint64_t SupportedTypes;
 	};
 
@@ -131,28 +131,38 @@ namespace MSF_CustomPrint
 	}
 
 	//-------------------------------------------------------------------------------------------------
-	void RegisterPrintFunction(char aChar, uint64_t someSupportedTypes, ValidateFunc aValidateFunc, PrintFunc aPrintFunc)
+	void RegisterPrintFunction(char aChar, uint64_t someSupportedTypes, MSF_CustomPrinter aPrinter)
 	{
-		MSF_ASSERT(someSupportedTypes != 0 && aValidateFunc != nullptr && aPrintFunc != nullptr, "Invalid arguments");
+		MSF_ASSERT(someSupportedTypes != 0, "Invalid arguments");
+		MSF_ASSERT(
+			aPrinter.ValidateUTF8 && aPrinter.ValidateUTF16 && aPrinter.ValidateUTF32 &&
+			aPrinter.PrintUTF8 && aPrinter.PrintUTF16 && aPrinter.PrintUTF32, "Incomplete Printer");
 
 		int index = GetCharIndex(aChar);
 		RegisteredChar& registered = theRegisteredChars[index];
 
-		MSF_ASSERT(registered.Validate == nullptr || registered.Validate == aValidateFunc,
+		MSF_ASSERT(registered.Printer.ValidateUTF8 == nullptr || registered.Printer.ValidateUTF8 == aPrinter.ValidateUTF8,
 			"Custom print function for '%c' already registered", aChar);
-		MSF_ASSERT(registered.Print == nullptr || registered.Print == aPrintFunc,
+		MSF_ASSERT(registered.Printer.ValidateUTF16 == nullptr || registered.Printer.ValidateUTF16 == aPrinter.ValidateUTF16,
+			"Custom print function for '%c' already registered", aChar);
+		MSF_ASSERT(registered.Printer.ValidateUTF32 == nullptr || registered.Printer.ValidateUTF32 == aPrinter.ValidateUTF32,
+			"Custom print function for '%c' already registered", aChar);
+		MSF_ASSERT(registered.Printer.PrintUTF8 == nullptr || registered.Printer.PrintUTF8 == aPrinter.PrintUTF8,
+			"Custom print function for '%c' already registered", aChar);
+		MSF_ASSERT(registered.Printer.PrintUTF16 == nullptr || registered.Printer.PrintUTF16 == aPrinter.PrintUTF16,
+			"Custom print function for '%c' already registered", aChar);
+		MSF_ASSERT(registered.Printer.PrintUTF32 == nullptr || registered.Printer.PrintUTF32 == aPrinter.PrintUTF32,
 			"Custom print function for '%c' already registered", aChar);
 		MSF_ASSERT(registered.SupportedTypes == 0 || registered.SupportedTypes == someSupportedTypes,
 			"Custom print function for '%c' already registered", aChar);
 
-		registered.Validate = aValidateFunc;
-		registered.Print = aPrintFunc;
+		registered.Printer = aPrinter;
 		registered.SupportedTypes = someSupportedTypes;
 	}
 	//-------------------------------------------------------------------------------------------------
-	void RegisterDefaultPrintFunction(char aChar, uint64_t someSupportedTypes, ValidateFunc aValidateFunc, PrintFunc aPrintFunc)
+	void RegisterDefaultPrintFunction(char aChar, uint64_t someSupportedTypes, MSF_CustomPrinter aPrinter)
 	{
-		RegisterPrintFunction(aChar, someSupportedTypes, aValidateFunc, aPrintFunc);
+		RegisterPrintFunction(aChar, someSupportedTypes, aPrinter);
 		RegisterTypesDefaultChar(someSupportedTypes, aChar);
 	}
 	//-------------------------------------------------------------------------------------------------
@@ -191,27 +201,72 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	bool InitializeCustomPrint()
 	{
-		RegisterDefaultPrintFunction('c', MSF_StringFormatChar::ValidTypes, MSF_StringFormatChar::Validate, MSF_StringFormatChar::Print);
-		RegisterPrintFunction('C', MSF_StringFormatChar::ValidTypes, MSF_StringFormatChar::Validate, MSF_StringFormatChar::Print);
+		{
+			MSF_CustomPrinter printer{
+				MSF_StringFormatChar::ValidateUTF8, MSF_StringFormatChar::ValidateUTF16, MSF_StringFormatChar::ValidateUTF32,
+				MSF_StringFormatChar::PrintUTF8, MSF_StringFormatChar::PrintUTF16, MSF_StringFormatChar::PrintUTF32
+			};
+			RegisterDefaultPrintFunction('c', MSF_StringFormatChar::ValidTypes, printer);
+			RegisterPrintFunction('C', MSF_StringFormatChar::ValidTypes, printer);
+		}
 
-		RegisterDefaultPrintFunction('s', MSF_StringFormatString::ValidTypes, MSF_StringFormatString::Validate, MSF_StringFormatString::Print);
-		RegisterPrintFunction('S', MSF_StringFormatString::ValidTypes, MSF_StringFormatString::Validate, MSF_StringFormatString::Print);
+		{
+			MSF_CustomPrinter printer{
+				MSF_StringFormatString::ValidateUTF8, MSF_StringFormatString::ValidateUTF16, MSF_StringFormatString::ValidateUTF32,
+				MSF_StringFormatString::PrintUTF8, MSF_StringFormatString::PrintUTF16, MSF_StringFormatString::PrintUTF32
+			};
+			RegisterDefaultPrintFunction('s', MSF_StringFormatString::ValidTypes, printer);
+			RegisterPrintFunction('S', MSF_StringFormatString::ValidTypes, printer);
+		}
 
-		RegisterDefaultPrintFunction('d', MSF_StringFormatInt::ValidTypes, MSF_StringFormatInt::Validate, MSF_StringFormatInt::Print);
-		RegisterPrintFunction('i', MSF_StringFormatInt::ValidTypes, MSF_StringFormatInt::Validate, MSF_StringFormatInt::Print);
-		RegisterPrintFunction('u', MSF_StringFormatInt::ValidTypes, MSF_StringFormatInt::Validate, MSF_StringFormatInt::Print);
-		RegisterPrintFunction('o', MSF_StringFormatInt::ValidTypes, MSF_StringFormatInt::ValidateOctal, MSF_StringFormatInt::Print);
-		RegisterPrintFunction('x', MSF_StringFormatInt::ValidTypes, MSF_StringFormatInt::ValidateHex, MSF_StringFormatInt::Print);
-		RegisterPrintFunction('X', MSF_StringFormatInt::ValidTypes, MSF_StringFormatInt::ValidateHex, MSF_StringFormatInt::Print);
-		RegisterPrintFunction('p', MSF_StringFormatInt::ValidTypes, MSF_StringFormatInt::ValidatePointer, MSF_StringFormatInt::Print);
-		RegisterPrintFunction('P', MSF_StringFormatInt::ValidTypes, MSF_StringFormatInt::ValidatePointer, MSF_StringFormatInt::Print);
+		{
+			MSF_CustomPrinter printer{
+				MSF_StringFormatInt::Validate, MSF_StringFormatInt::Validate, MSF_StringFormatInt::Validate,
+				MSF_StringFormatInt::PrintUTF8, MSF_StringFormatInt::PrintUTF16, MSF_StringFormatInt::PrintUTF32
+			};
+			RegisterDefaultPrintFunction('d', MSF_StringFormatInt::ValidTypes, printer);
+			RegisterPrintFunction('i', MSF_StringFormatInt::ValidTypes, printer);
+			RegisterPrintFunction('u', MSF_StringFormatInt::ValidTypes, printer);
+		}
 
-		RegisterPrintFunction('e', MSF_StringFormatFloat::ValidTypes, MSF_StringFormatFloat::Validate, MSF_StringFormatFloat::Print);
-		RegisterPrintFunction('E', MSF_StringFormatFloat::ValidTypes, MSF_StringFormatFloat::Validate, MSF_StringFormatFloat::Print);
-		RegisterPrintFunction('f', MSF_StringFormatFloat::ValidTypes, MSF_StringFormatFloat::Validate, MSF_StringFormatFloat::Print);
-		RegisterPrintFunction('F', MSF_StringFormatFloat::ValidTypes, MSF_StringFormatFloat::Validate, MSF_StringFormatFloat::Print);
-		RegisterDefaultPrintFunction('g', MSF_StringFormatFloat::ValidTypes, MSF_StringFormatFloat::Validate, MSF_StringFormatFloat::Print);
-		RegisterPrintFunction('G', MSF_StringFormatFloat::ValidTypes, MSF_StringFormatFloat::Validate, MSF_StringFormatFloat::Print);
+		{
+			MSF_CustomPrinter printer{
+				MSF_StringFormatInt::ValidateOctal, MSF_StringFormatInt::ValidateOctal, MSF_StringFormatInt::ValidateOctal,
+				MSF_StringFormatInt::PrintUTF8, MSF_StringFormatInt::PrintUTF16, MSF_StringFormatInt::PrintUTF32
+			};
+			RegisterPrintFunction('o', MSF_StringFormatInt::ValidTypes, printer);
+		}
+
+		{
+			MSF_CustomPrinter printer{
+				MSF_StringFormatInt::ValidateHex, MSF_StringFormatInt::ValidateHex, MSF_StringFormatInt::ValidateHex,
+				MSF_StringFormatInt::PrintUTF8, MSF_StringFormatInt::PrintUTF16, MSF_StringFormatInt::PrintUTF32
+			};
+			RegisterPrintFunction('x', MSF_StringFormatInt::ValidTypes, printer);
+			RegisterPrintFunction('X', MSF_StringFormatInt::ValidTypes, printer);
+		}
+
+		{
+			MSF_CustomPrinter printer{
+				MSF_StringFormatInt::ValidatePointer, MSF_StringFormatInt::ValidatePointer, MSF_StringFormatInt::ValidatePointer,
+				MSF_StringFormatInt::PrintUTF8, MSF_StringFormatInt::PrintUTF16, MSF_StringFormatInt::PrintUTF32
+			};
+			RegisterPrintFunction('p', MSF_StringFormatInt::ValidTypes, printer);
+			RegisterPrintFunction('P', MSF_StringFormatInt::ValidTypes, printer);
+		}
+
+		{
+			MSF_CustomPrinter printer{
+				MSF_StringFormatFloat::Validate, MSF_StringFormatFloat::Validate, MSF_StringFormatFloat::Validate,
+				MSF_StringFormatFloat::PrintUTF8, MSF_StringFormatFloat::PrintUTF16, MSF_StringFormatFloat::PrintUTF32
+			};
+			RegisterPrintFunction('e', MSF_StringFormatFloat::ValidTypes, printer);
+			RegisterPrintFunction('E', MSF_StringFormatFloat::ValidTypes, printer);
+			RegisterPrintFunction('f', MSF_StringFormatFloat::ValidTypes, printer);
+			RegisterPrintFunction('F', MSF_StringFormatFloat::ValidTypes, printer);
+			RegisterDefaultPrintFunction('g', MSF_StringFormatFloat::ValidTypes, printer);
+			RegisterPrintFunction('G', MSF_StringFormatFloat::ValidTypes, printer);
+		}
 
 		return true;
 	}
@@ -221,25 +276,36 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	// Validate external assumed users are calling the correct types and will crash if invalid
 	//-------------------------------------------------------------------------------------------------
-	size_t ValidateType(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
+	size_t ValidateTypeUTF8(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
 	{
 		RegisteredChar const& registered = theRegisteredChars[GetCharIndex(aChar)];
-		return registered.Validate(aPrintData, aValue);
+		return registered.Printer.ValidateUTF8(aPrintData, aValue);
+	}
+	size_t ValidateTypeUTF16(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
+	{
+		RegisteredChar const& registered = theRegisteredChars[GetCharIndex(aChar)];
+		return registered.Printer.ValidateUTF16(aPrintData, aValue);
+	}
+	size_t ValidateTypeUTF32(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
+	{
+		RegisteredChar const& registered = theRegisteredChars[GetCharIndex(aChar)];
+		return registered.Printer.ValidateUTF32(aPrintData, aValue);
 	}
 
 	//-------------------------------------------------------------------------------------------------
 	// Validate internal is safer than the external one since it depends on string format
 	//-------------------------------------------------------------------------------------------------
-	MSF_PrintResult ValidateType(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
+	template <typename Char>
+	MSF_PrintResult ValidateTypeShared(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue)
 	{
 		RegisteredChar const& registered = theRegisteredChars[GetCharIndex(aPrintData.myPrintChar)];
-		if (!registered.Validate)
+		if (!registered.Printer.ValidateUTF8)
 			return MSF_PrintResult(ER_UnregisteredChar, aPrintData.myPrintChar);
 
 		if (!(registered.SupportedTypes & aValue.myType))
 			return MSF_PrintResult(ER_TypeMismatch, aPrintData.myPrintChar);
 
-		size_t maxLength = registered.Validate(aPrintData, aValue);
+		size_t maxLength = registered.Printer.Validate<Char>(aPrintData, aValue);
 		MSF_ASSERT(maxLength >= 0, "Validates can't fail");
 
 		aPrintData.myMaxLength = maxLength;
@@ -248,14 +314,27 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	// Print a character type, useful for chaining custom types into standard types
 	//-------------------------------------------------------------------------------------------------
-	size_t PrintType(char aChar, char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, MSF_StringFormatType const& aValue)
+	template <typename Char>
+	size_t PrintTypeShared(char aChar, Char* aBuffer, Char const* aBufferEnd, MSF_PrintData const& aData, MSF_StringFormatType const& aValue)
 	{
 		RegisteredChar const& registered = theRegisteredChars[GetCharIndex(aChar)];
 
 		MSF_PrintData tmp = aData;
 		tmp.myPrintChar = aChar;
 		tmp.myValue = &aValue;
-		return registered.Print(aBuffer, aBufferEnd, tmp);
+		return registered.Printer.Print(aBuffer, aBufferEnd, tmp);
+	}
+	size_t PrintType(char aChar, char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData, MSF_StringFormatType const& aValue)
+	{
+		return PrintTypeShared(aChar, aBuffer, aBufferEnd, aData, aValue);
+	}
+	size_t PrintType(char aChar, char16_t* aBuffer, char16_t const* aBufferEnd, MSF_PrintData const& aData, MSF_StringFormatType const& aValue)
+	{
+		return PrintTypeShared(aChar, aBuffer, aBufferEnd, aData, aValue);
+	}
+	size_t PrintType(char aChar, char32_t* aBuffer, char32_t const* aBufferEnd, MSF_PrintData const& aData, MSF_StringFormatType const& aValue)
+	{
+		return PrintTypeShared(aChar, aBuffer, aBufferEnd, aData, aValue);
 	}
 	//-------------------------------------------------------------------------------------------------
 	// Error Handling
@@ -286,7 +365,8 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	// Normal printf
 	//-------------------------------------------------------------------------------------------------
-	MSF_PrintResult SetupPrintfInfo(MSF_PrintData& aPrintData, char const*& anInput)
+	template <typename Char>
+	MSF_PrintResult SetupPrintfInfo(MSF_PrintData& aPrintData, Char const*& anInput)
 	{
 		// gather the parts
 		// [flags] [width] [.precision] type
@@ -298,7 +378,7 @@ namespace MSF_CustomPrint
 		bool leadingZero = true; // to know if we found a 0 before or after other numbers
 		uint32_t width = 0;
 		uint32_t precision = 0;
-		for (char character = *anInput++; character; character = *anInput++)
+		for (Char character = *anInput++; character; character = *anInput++)
 		{
 			// read until non-flag is found
 			switch (character)
@@ -345,7 +425,7 @@ namespace MSF_CustomPrint
 						advance = 2;
 					}
 
-					char const next = anInput[advance];
+					Char const next = anInput[advance];
 					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X')
 					{
 						character = next;
@@ -357,7 +437,7 @@ namespace MSF_CustomPrint
 			case 'h': // look for (h|hh)(d|i|o|u|x|X|n) or h(s|c)
 				if (anInput[0] == 'h')
 				{
-					char const next = anInput[1];
+					Char const next = anInput[1];
 					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n')
 					{
 						// skip hh
@@ -367,7 +447,7 @@ namespace MSF_CustomPrint
 				}
 				else
 				{
-					char const next = anInput[0];
+					Char const next = anInput[0];
 					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n' ||
 						next == 's' || next == 'c')
 					{
@@ -381,7 +461,7 @@ namespace MSF_CustomPrint
 			case 'l': // look for (l|ll)(d|i|o|u|x|X|n) or l(s|c|f|F|e|E|a|A|g|G)
 				if (anInput[0] == 'l')
 				{
-					char const next = anInput[1];
+					Char const next = anInput[1];
 					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n')
 					{
 						// skip ll
@@ -391,7 +471,7 @@ namespace MSF_CustomPrint
 				}
 				else
 				{
-					char const next = anInput[0];
+					Char const next = anInput[0];
 					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n' ||
 						next == 's' || next == 'c' ||
 						next == 'f' || next == 'F' || next == 'e' || next == 'E' || next == 'a' || next == 'A' || next == 'g' || next == 'G')
@@ -407,7 +487,7 @@ namespace MSF_CustomPrint
 			case 't':
 			case 'z': // look for (j|t|z)(d|i|o|u|x|X)
 			{
-				char const next = anInput[0];
+				Char const next = anInput[0];
 				if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X')
 				{
 					// skip l
@@ -419,7 +499,7 @@ namespace MSF_CustomPrint
 
 			case 'L': // look for L(f|F|e|E|a|A|g|G)
 			{
-				char const next = anInput[0];
+				Char const next = anInput[0];
 				if (next == 'f' || next == 'F' || next == 'e' || next == 'E' || next == 'a' || next == 'A' || next == 'g' || next == 'G')
 				{
 					// skip l
@@ -431,7 +511,7 @@ namespace MSF_CustomPrint
 
 			case 'w': // look for w(s|c)
 			{
-				char const next = anInput[0];
+				Char const next = anInput[0];
 				if (next == 's' || next == 'c')
 				{
 					// skip l
@@ -450,7 +530,7 @@ namespace MSF_CustomPrint
 				{
 					do_print:
 
-					aPrintData.myPrintChar = character;
+					aPrintData.myPrintChar = (char)character;
 
 					static_assert(sizeof(aPrintData.myWidth) == 2, "sizeof myWidth changed, update code");
 					MSF_ASSERT(width < UINT16_MAX);
@@ -460,7 +540,7 @@ namespace MSF_CustomPrint
 					MSF_ASSERT(precision < UINT16_MAX);
 					aPrintData.myPrecision = (uint16_t)precision;
 
-					return ValidateType(aPrintData, *aPrintData.myValue);
+					return ValidateTypeShared<Char>(aPrintData, *aPrintData.myValue);
 				}
 			}
 		}
@@ -471,7 +551,8 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	// CSharp/hybrid style
 	//-------------------------------------------------------------------------------------------------
-	MSF_PrintResult SetupFormatInfo(MSF_PrintData& aPrintData, char const*& anInput)
+	template <typename Char>
+	MSF_PrintResult SetupFormatInfo(MSF_PrintData& aPrintData, Char const*& anInput)
 	{
 		// gather the parts
 		// https://docs.microsoft.com/en-us/dotnet/api/system.string.format?view=netframework-4.8#controlling-formatting
@@ -506,7 +587,7 @@ namespace MSF_CustomPrint
 			if (!MSF_IsAsciiAlphaNumeric(*anInput))
 				return MSF_PrintResult(ER_InvalidPrintCharacter, aPrintData.myValue->myType, 0);
 
-			aPrintData.myPrintChar = *(anInput++);
+			aPrintData.myPrintChar = (char)*(anInput++);
 
 			uint32_t precision = 0;
 			while (MSF_IsDigit(*anInput))
@@ -528,13 +609,14 @@ namespace MSF_CustomPrint
 
 		++anInput;
 
-		return ValidateType(aPrintData, *aPrintData.myValue);
+		return ValidateTypeShared<Char>(aPrintData, *aPrintData.myValue);
 	}
 }
 
 //-------------------------------------------------------------------------------------------------
 // Helper class for constructing a formatted string
 //-------------------------------------------------------------------------------------------------
+template <typename Char>
 class MSF_StringFormatter
 {
 public:
@@ -545,7 +627,7 @@ public:
 
 	MSF_StringFormatter() : myPrintedCharacters(0) {}
 
-	MSF_PrintResult PrepareFormatter(MSF_StringFormat const& aStringFormat)
+	MSF_PrintResult PrepareFormatter(MSF_StringFormatTemplate<Char> const& aStringFormat)
 	{
 		uint32_t const inputCount = aStringFormat.NumArgs();
 		if (inputCount > MaxArguments)
@@ -555,11 +637,11 @@ public:
 		MSF_StringFormatType const* aData = aStringFormat.GetArgs();
 		
 		myPrintString = aStringFormat.GetString();
-		char const* str = myPrintString;
+		Char const* str = myPrintString;
 
 		enum Mode { None, Auto, Specific };
 		Mode printMode = None;
-		char character;
+		Char character;
 
 		for ((character = *str++); character; (character = *str++))
 		{
@@ -610,7 +692,7 @@ public:
 						if (printMode == None)
 							printMode = thisMode;
 						else 
-							return MSF_PrintResult(ER_InconsistentPrintType, printMode, int(printData.myStart - myPrintString));
+							return MSF_PrintResult(ER_InconsistentPrintType, printMode, int((Char const*)printData.myStart - myPrintString));
 					}
 
 					if (inputIndex >= inputCount)
@@ -653,17 +735,17 @@ public:
 		size_t requiredLength = str - myPrintString;
 		for (uint32_t i = 0; i < myPrintedCharacters; ++i)
 		{
-			requiredLength += myPrintData[i].myMaxLength - (myPrintData[i].myEnd - myPrintData[i].myStart);
+			requiredLength += myPrintData[i].myMaxLength - ((Char const*)myPrintData[i].myEnd - (Char const*)myPrintData[i].myStart);
 		}
 
 		return MSF_PrintResult(requiredLength);
 	}
 
-	size_t FormatString(char* aBuffer, size_t aBufferLength) const
+	size_t FormatString(Char* aBuffer, size_t aBufferLength) const
 	{
-		char const* start = aBuffer;
-		char const* end = aBuffer + aBufferLength;
-		char const* read = myPrintString;
+		Char const* start = aBuffer;
+		Char const* end = aBuffer + aBufferLength;
+		Char const* read = myPrintString;
 		for (uint32_t i = 0; i < myPrintedCharacters; ++i)
 		{
 			// copy segment between print markers
@@ -683,10 +765,10 @@ public:
 			}
 
 			int index = MSF_CustomPrint::GetCharIndex(myPrintData[i].myPrintChar);
-			aBuffer += MSF_CustomPrint::theRegisteredChars[index].Print(aBuffer, end, myPrintData[i]);
+			aBuffer += MSF_CustomPrint::theRegisteredChars[index].Printer.Print(aBuffer, (Char const*)end, myPrintData[i]);
 			MSF_ASSERT(aBuffer < end);
 
-			read = myPrintData[i].myEnd;
+			read = (Char const*)myPrintData[i].myEnd;
 		}
 
 		while (*read)
@@ -708,7 +790,7 @@ public:
 		return aBuffer - start;
 	}
 
-	void ProcessError(MSF_PrintResult anError, char* aBuffer, size_t aBufferLength, size_t anOffset, char* (*aReallocFunction)(char*, size_t, void*), void* aUserData)
+	void ProcessError(MSF_PrintResult anError, Char* aBuffer, size_t aBufferLength, size_t anOffset, Char* (*aReallocFunction)(Char*, size_t, void*), void* aUserData)
 	{
 		MSF_CustomPrint::ErrorMode errorMode = MSF_CustomPrint::GetErrorMode();
 		char errorMessage[256];
@@ -748,7 +830,7 @@ public:
 					errorLength = aBufferLength - anOffset;
 				}
 			}
-			MSF_CopyChars(aBuffer + anOffset, aBuffer + aBufferLength, errorMessage, errorLength);
+			MSF_UTFCopy(aBuffer + anOffset, aBufferLength - anOffset, errorMessage, errorLength);
 		}
 		
 		// else do nothing
@@ -757,15 +839,16 @@ public:
 private:
 
 	MSF_PrintData myPrintData[MaxArguments];
-	char const* myPrintString;
+	Char const* myPrintString;
 	size_t myPrintedCharacters;
 };
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-intptr_t MSF_FormatString(MSF_StringFormatTemplate<char> const& aStringFormat, char* aBuffer, size_t aBufferLength, size_t anOffset, char* (*aReallocFunction)(char*, size_t, void*), void* aUserData)
+template <typename Char>
+intptr_t MSF_FormatStringShared(MSF_StringFormatTemplate<Char> const& aStringFormat, Char* aBuffer, size_t aBufferLength, size_t anOffset, Char* (*aReallocFunction)(Char*, size_t, void*), void* aUserData)
 {
-	MSF_StringFormatter formatter;
+	MSF_StringFormatter<Char> formatter;
 	MSF_PrintResult result = formatter.PrepareFormatter(aStringFormat);
 
 	if (result.MaxBufferLength < 0)
@@ -796,6 +879,39 @@ intptr_t MSF_FormatString(MSF_StringFormatTemplate<char> const& aStringFormat, c
 	size_t printed = formatter.FormatString(aBuffer + anOffset, aBufferLength - anOffset);
 	MSF_ASSERT(printed <= (size_t)result.MaxBufferLength - 1);
 	return printed;
+}
+
+intptr_t MSF_FormatString(MSF_StringFormat const& aStringFormat, char* aBuffer, size_t aBufferLength, size_t anOffset, char* (*aReallocFunction)(char*, size_t, void*), void* aUserData)
+{
+	return MSF_FormatStringShared(aStringFormat, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
+}
+intptr_t MSF_FormatString(MSF_StringFormatUTF16 const& aStringFormat, char16_t* aBuffer, size_t aBufferLength, size_t anOffset, char16_t* (*aReallocFunction)(char16_t*, size_t, void*), void* aUserData)
+{
+	return MSF_FormatStringShared(aStringFormat, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
+}
+intptr_t MSF_FormatString(MSF_StringFormatUTF32 const& aStringFormat, char32_t* aBuffer, size_t aBufferLength, size_t anOffset, char32_t* (*aReallocFunction)(char32_t*, size_t, void*), void* aUserData)
+{
+	return MSF_FormatStringShared(aStringFormat, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
+}
+intptr_t MSF_FormatString(MSF_StringFormatWChar const& aStringFormat, wchar_t* aBuffer, size_t aBufferLength, size_t anOffset, wchar_t* (*aReallocFunction)(wchar_t*, size_t, void*), void* aUserData)
+{
+#if WCHAR_MAX == UINT16_MAX
+	return MSF_FormatStringShared(
+		*(MSF_StringFormatUTF16 const*)&aStringFormat,
+		(char16_t*)aBuffer,
+		aBufferLength,
+		anOffset,
+		(char16_t* (*)(char16_t*, size_t, void*))aReallocFunction,
+		aUserData);
+#else
+	return MSF_FormatStringShared(
+		*(MSF_StringFormatUTF32 const*)&aStringFormat,
+		(char32_t*)aBuffer,
+		aBufferLength,
+		anOffset,
+		(char32_t* (*)(char32_t*, size_t, void*))aReallocFunction,
+		aUserData);
+#endif
 }
 
 template class MSF_StringFormatTemplate<char>;

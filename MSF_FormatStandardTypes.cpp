@@ -1,56 +1,9 @@
 #include "MSF_FormatStandardTypes.h"
 #include "MSF_Assert.h"
-#include "MSF_Utilities.h"
+#include "MSF_PlatformConfig.h"
 #include "MSF_ToString.h"
 #include "MSF_UTF.h"
-
-#if MSF_FORMAT_LOCAL_PLATFORM
-
-#undef MSF_STRING_ALLOW_LEADING_ZERO
-#undef MSF_STRING_PRECISION_IS_CHARACTERS
-#undef MSF_WSTRING_WIDTH_IS_BYTES
-#undef MSF_POINTER_FORCE_PRECISION
-#undef MSF_POINTER_ADD_PREFIX
-#undef MSF_POINTER_ADD_SIGN_OR_BLANK
-
-#if defined(__ANDROID__)
-#define MSF_STRING_ALLOW_LEADING_ZERO 1
-#define MSF_STRING_PRECISION_IS_CHARACTERS 0
-#define MSF_WSTRING_WIDTH_IS_BYTES 0
-#define MSF_POINTER_FORCE_PRECISION 0
-#define MSF_POINTER_ADD_PREFIX 1
-#define MSF_POINTER_ADD_SIGN_OR_BLANK 0
-#define MSF_POINTER_PRINT_CAPS 0
-#elif defined(__APPLE__)
-#define MSF_STRING_ALLOW_LEADING_ZERO 1
-#define MSF_STRING_PRECISION_IS_CHARACTERS 0
-#define MSF_WSTRING_WIDTH_IS_BYTES 0
-#define MSF_POINTER_FORCE_PRECISION 0
-#define MSF_POINTER_ADD_PREFIX 1
-#define MSF_POINTER_ADD_SIGN_OR_BLANK 0
-#define MSF_POINTER_PRINT_CAPS 0
-#elif defined(__linux__)
-#define MSF_STRING_ALLOW_LEADING_ZERO 0
-#define MSF_STRING_PRECISION_IS_CHARACTERS 0
-#define MSF_WSTRING_WIDTH_IS_BYTES 0
-#define MSF_POINTER_FORCE_PRECISION 0
-#define MSF_POINTER_ADD_PREFIX 1
-#define MSF_POINTER_ADD_SIGN_OR_BLANK 1
-#define MSF_POINTER_PRINT_CAPS 0
-#elif defined(_MSC_VER)
-#define MSF_STRING_ALLOW_LEADING_ZERO 1
-#define MSF_STRING_PRECISION_IS_CHARACTERS 1
-#define MSF_WSTRING_WIDTH_IS_BYTES 1
-#define MSF_POINTER_FORCE_PRECISION 1
-#define MSF_POINTER_ADD_PREFIX 0
-#define MSF_POINTER_ADD_SIGN_OR_BLANK 0
-#define MSF_POINTER_PRINT_CAPS 1
-#else
-#error "Unsupported platform"
-#endif
-
-#endif // MSF_FORMAT_LOCAL_PLATFORM
-
+#include "MSF_Utilities.h"
 
 //-------------------------------------------------------------------------------------------------
 // Windows printf respects the 0 flag, posix doesn't
@@ -450,6 +403,35 @@ namespace MSF_StringFormatInt
 		auto precision = aData.myPrecision;
 		auto flags = aData.myFlags;
 
+		Type value;
+		if (isSigned)
+		{
+			SignedType signedValue = aValue;
+			if (signedValue < 0)
+			{
+				value = -signedValue;
+
+				printSign = true;
+				sign = '-';
+			}
+			else
+			{
+				value = signedValue;
+				if (flags & PRINT_SIGN)
+				{
+					printSign = true;
+					sign = '+';
+				}
+				else if (flags & PRINT_BLANK)
+				{
+					printSign = true;
+					sign = ' ';
+				}
+			}
+		}
+		else
+			value = aValue;
+
 		switch (aData.myPrintChar)
 		{
 		case 'o':
@@ -463,6 +445,16 @@ namespace MSF_StringFormatInt
 			break;
 		case 'P':
 		case 'p':
+
+#if MSF_POINTER_PRINT_NIL
+			if (value == 0)
+			{
+				Char nil[] = { '(', 'n', 'i', 'l', ')', 0 };
+				aData.myUserData = 5;
+				return MSF_CustomPrint::PrintType('s', aBuffer, aBufferEnd, aData, MSF_StringFormatType(nil));
+			}
+#endif
+
 			radix = 16;
 
 #if MSF_POINTER_FORCE_PRECISION
@@ -493,35 +485,6 @@ namespace MSF_StringFormatInt
 		{
 			flags &= ~PRINT_ZERO;
 		}
-
-		Type value;
-		if (isSigned)
-		{
-			SignedType signedValue = aValue;
-			if (signedValue < 0)
-			{
-				value = -signedValue;
-
-				printSign = true;
-				sign = '-';
-			}
-			else
-			{
-				value = signedValue;
-				if (flags & PRINT_SIGN)
-				{
-					printSign = true;
-					sign = '+';
-				}
-				else if (flags & PRINT_BLANK)
-				{
-					printSign = true;
-					sign = ' ';
-				}
-			}
-		}
-		else
-			value = aValue;
 
 		auto utoa = MSF_UnsignedToString<Type, Char>(value, radix, start);
 		Char const* string = utoa;

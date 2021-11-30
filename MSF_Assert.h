@@ -46,15 +46,15 @@ extern void (*MSF_LogAssertExternal)(const char* aFile, int aLine, char const* a
 //-------------------------------------------------------------------------------------------------
 // Set this function if you want control of when to enable asserts will cause a program to halt
 //-------------------------------------------------------------------------------------------------
-extern bool (*MSF_LogAssertBreak)();
+extern bool (*MSF_DoAssert)();
 
 //-------------------------------------------------------------------------------------------------
 // Assert macro
 //-------------------------------------------------------------------------------------------------
 #define MSF_ASSERT(condition, ...) do {\
-		if (!(condition)) { \
+		if (!(condition) && (!MSF_DoAssert || MSF_DoAssert())) { \
 			MSF_LogAssertInternal(__FILE__, __LINE__, MSF_STR(condition), MSF_MakeStringFormat("" __VA_ARGS__));\
-			if (MSF_LogAssertBreak == nullptr || MSF_LogAssertBreak()) MSF_BREAK;\
+			MSF_BREAK;\
 		} } while(0)\
 
 #else
@@ -66,6 +66,9 @@ extern bool (*MSF_LogAssertBreak)();
 //-------------------------------------------------------------------------------------------------
 // Optional heavy asserts. When enabled these do additional checks that may have significant effect on performance
 //-------------------------------------------------------------------------------------------------
+
+#if !defined(MSF_HEAVY_ASSERT)
+
 #if !defined(MSF_HEAVY_ASSERTS_ENABLED)
 #define MSF_HEAVY_ASSERTS_ENABLED 0
 #endif
@@ -75,3 +78,5 @@ extern bool (*MSF_LogAssertBreak)();
 #else
 #define MSF_HEAVY_ASSERT(...) (void)0
 #endif
+
+#endif // defined(MSF_HEAVY_ASSERT)

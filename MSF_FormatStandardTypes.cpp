@@ -201,16 +201,19 @@ namespace MSF_StringFormatString
 	template <typename CharTo, typename CharFrom>
 	struct Helper
 	{
-		static size_t Validate(MSF_PrintData& aData, CharFrom const* aString)
+		static size_t Validate(MSF_PrintData& aData, CharFrom const* aString, size_t aLength)
 		{
 			MSF_CharactersWritten written;
 
 			if (aData.myFlags & PRINT_PRECISION)
 			{
 #if MSF_STRING_PRECISION_IS_CHARACTERS
-				written = MSF_UTFCopyLength<CharTo>(aString, aData.myPrecision);
+				if (aLength == SIZE_MAX)
+					written = MSF_UTFCopyLength<CharTo>(aString, aData.myPrecision);
+				else
+					written = MSF_UTFCopy((CharTo*)nullptr, aLength, aString, aData.myPrecision);
 #else
-				written = MSF_UTFCopy((CharTo*)nullptr, aData.myPrecision, aString);
+				written = MSF_UTFCopy((CharTo*)nullptr, MSF_IntMin<size_t>(aLength, aData.myPrecision), aString);
 #endif
 			}
 			else
@@ -267,9 +270,9 @@ namespace MSF_StringFormatString
 	template <typename Char>
 	struct Helper<Char, Char>
 	{
-		static size_t Validate(MSF_PrintData& aData, Char const* aString)
+		static size_t Validate(MSF_PrintData& aData, Char const* aString, size_t aLength)
 		{
-			aData.myUserData = MSF_Strlen(aString);
+			aData.myUserData = aLength == SIZE_MAX ? MSF_Strlen(aString) : aLength;
 
 			if (aData.myFlags & PRINT_PRECISION)
 			{
@@ -308,17 +311,17 @@ namespace MSF_StringFormatString
 	};
 
 	template <typename Char>
-	size_t ValidateShared(MSF_PrintData& aData, MSF_StringFormatType const& aValue)
+	size_t ValidateShared(MSF_PrintData& aData, MSF_StringFormatType const& aValue, size_t aLength = SIZE_MAX)
 	{
 		MSF_ASSERT(aValue.myType & ValidTypes);
 
 		if ((aValue.myUserData & (MSF_StringFormatType::UTF16 | MSF_StringFormatType::UTF32)) == 0)
-			return Helper<Char, char>::Validate(aData, aValue.myString);
+			return Helper<Char, char>::Validate(aData, aValue.myString, aLength);
 
 		if (aValue.myUserData & MSF_StringFormatType::UTF16)
-			return Helper<Char, char16_t>::Validate(aData, aValue.myUTF16String);
+			return Helper<Char, char16_t>::Validate(aData, aValue.myUTF16String, aLength);
 
-		return Helper<Char, char32_t>::Validate(aData, aValue.myUTF32String);
+		return Helper<Char, char32_t>::Validate(aData, aValue.myUTF32String, aLength);
 	}
 
 	size_t ValidateUTF8(MSF_PrintData& aData, MSF_StringFormatType const& aValue)
@@ -334,6 +337,21 @@ namespace MSF_StringFormatString
 	size_t ValidateUTF32(MSF_PrintData& aData, MSF_StringFormatType const& aValue)
 	{
 		return ValidateShared<char32_t>(aData, aValue);
+	}
+
+	size_t ValidateUTF8(MSF_PrintData& aData, MSF_StringFormatType const& aValue, size_t aLength)
+	{
+		return ValidateShared<char>(aData, aValue, aLength);
+	}
+
+	size_t ValidateUTF16(MSF_PrintData& aData, MSF_StringFormatType const& aValue, size_t aLength)
+	{
+		return ValidateShared<char16_t>(aData, aValue, aLength);
+	}
+
+	size_t ValidateUTF32(MSF_PrintData& aData, MSF_StringFormatType const& aValue, size_t aLength)
+	{
+		return ValidateShared<char32_t>(aData, aValue, aLength);
 	}
 
 	template <typename Char>
@@ -635,8 +653,6 @@ namespace MSF_StringFormatFloat
 	template <typename Char>
 	size_t PrintShared(Char* aBuffer, Char const* aBufferEnd, MSF_PrintData const& aData)
 	{
-		MSF_ASSERT(aData.myMaxLength < size_t(aBufferEnd - aBuffer));
-
 		double value = aData.myValue->myType == MSF_StringFormatType::Typefloat ? aData.myValue->myfloat : aData.myValue->mydouble;
 		return MSF_DoubleToString(value, aBuffer, MSF_IntMin<size_t>(aData.myMaxLength, aBufferEnd - aBuffer), aData.myPrintChar, aData.myWidth, aData.myPrecision, aData.myFlags);
 	}

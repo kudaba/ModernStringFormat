@@ -71,6 +71,11 @@ struct MSF_CustomPrinter
 	size_t Print(Char* aBuffer, Char const* aBufferEnd, MSF_PrintData const& aPrintData) const;
 };
 
+//-------------------------------------------------------------------------------------------------
+// If you define your Validate and Print functions as templates then you can use this helper when registering them
+//-------------------------------------------------------------------------------------------------
+#define MSF_MakeCustomPrinter(Validate, Print) { Validate<char>, Validate<char16_t>, Validate<char32_t>, Print<char>, Print<char16_t>, Print<char32_t> }
+
 template<> inline size_t MSF_CustomPrinter::Validate<char>(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue) const { return ValidateUTF8(aPrintData, aValue); }
 template<> inline size_t MSF_CustomPrinter::Validate<char16_t>(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue) const { return ValidateUTF16(aPrintData, aValue); }
 template<> inline size_t MSF_CustomPrinter::Validate<char32_t>(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue) const { return ValidateUTF32(aPrintData, aValue); }
@@ -110,6 +115,9 @@ namespace MSF_CustomPrint
 	size_t PrintType(char aChar, char16_t* aBuffer, char16_t const* aBufferEnd, MSF_PrintData const& aData, MSF_StringFormatType const& aValue);
 	size_t PrintType(char aChar, char32_t* aBuffer, char32_t const* aBufferEnd, MSF_PrintData const& aData, MSF_StringFormatType const& aValue);
 
+	template <typename Char>
+	size_t ValidateType(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue);
+
 	//-------------------------------------------------------------------------------------------------
 	// Set how you want string formats to handle errors. Can be set globaller or on a per thread basis
 	//-------------------------------------------------------------------------------------------------
@@ -124,3 +132,7 @@ namespace MSF_CustomPrint
 	void SetLocalErrorMode(ErrorMode aMode);
 	void ClearLocalErrorMode();
 };
+
+template<> inline size_t MSF_CustomPrint::ValidateType<char>(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue) { return MSF_CustomPrint::ValidateTypeUTF8(aChar, aPrintData, aValue); }
+template<> inline size_t MSF_CustomPrint::ValidateType<char16_t>(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue) { return MSF_CustomPrint::ValidateTypeUTF8(aChar, aPrintData, aValue); }
+template<> inline size_t MSF_CustomPrint::ValidateType<char32_t>(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue) { return MSF_CustomPrint::ValidateTypeUTF8(aChar, aPrintData, aValue); }

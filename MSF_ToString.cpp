@@ -330,7 +330,7 @@ int MSF_DoubleToStringShared(double aValue, Char* aBuffer, size_t aBufferLength,
         if (doRoundUp)
         {
             // round up?
-            if (ffpart > 0.5)
+            if (ffpart >= 0.5)
             {
                 bool add = false;
                 int remainingPrecision = aPrecision;
@@ -415,7 +415,7 @@ int MSF_DoubleToStringShared(double aValue, Char* aBuffer, size_t aBufferLength,
                 ++fwidth;
             }
             // round up?
-            if (ffpart > 0.5)
+            if (ffpart >= 0.5)
             {
                 bool add = false;
                 if (aPrecision)
@@ -486,9 +486,8 @@ int MSF_DoubleToStringShared(double aValue, Char* aBuffer, size_t aBufferLength,
                 --fwidth;
             }
         }
-        // introduce trailing zeroes up to precision when in prefix mode
-        else
-        {
+		else if (someFlags & PRINT_PRECISION)
+		{
             while (iwidth + fwidth < aPrecision)
             {
                 *(fw++) = '0';
@@ -507,7 +506,8 @@ int MSF_DoubleToStringShared(double aValue, Char* aBuffer, size_t aBufferLength,
                     --fwidth;
                 }
 
-                if (aValue == 0)
+				// introduce trailing zeroes up to precision when in prefix mode
+				if (aValue == 0 && (someFlags & PRINT_PREFIX))
                 {
                     while (fwidth < aPrecision)
                     {

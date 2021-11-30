@@ -3,6 +3,13 @@
 #include "MSF_UTF.h"
 #include "MSF_Utilities.h"
 
+#if _MSC_VER
+#define STRICT
+#define WIN32_LEANER_AND_MEANER
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 //-------------------------------------------------------------------------------------------------
 // Types of errors that can occur during print validation
 //-------------------------------------------------------------------------------------------------
@@ -109,8 +116,6 @@ namespace MSF_CustomPrint
 	{
 #if _MSC_VER
 #if INTPTR_MAX == INT32_MAX
-		extern unsigned char ::_BitScanForward(unsigned long* _Index, unsigned long _Mask);
-
 		unsigned long result;
 		if (_BitScanForward(&result, (unsigned long)aValue))
 			return result;
@@ -118,8 +123,6 @@ namespace MSF_CustomPrint
 			return result + 32;
 		return -1;
 #else
-		extern unsigned char ::_BitScanForward64(unsigned long* _Index, unsigned __int64 _Mask);
-
 		unsigned long result;
 		if (_BitScanForward64(&result, aValue))
 			return result;
@@ -799,7 +802,7 @@ public:
 		// Null terminate buffer if possible
 		if (aBuffer && aBufferLength)
 		{
-			aBuffer[0] = 0;
+			aBuffer[MSF_IntMin(anOffset, aBufferLength-1)] = 0;
 		}
 
 		if (errorMode == MSF_CustomPrint::Assert)

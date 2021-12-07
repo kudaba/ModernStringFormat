@@ -99,9 +99,14 @@ namespace MSF_CustomPrint
 	void RegisterDefaultPrintFunction(char aChar, uint64_t someSupportedTypes, MSF_CustomPrinter aPrinter);
 
 	//-------------------------------------------------------------------------------------------------
-	// Override the default print function for a set of types
+	// Set the default print function for a set of types
 	//-------------------------------------------------------------------------------------------------
 	void RegisterTypesDefaultChar(uint64_t someSupportedTypes, char aChar);
+
+	//-------------------------------------------------------------------------------------------------
+	// Force the default print function for a set of types to a new value
+	//-------------------------------------------------------------------------------------------------
+	void OverrideTypesDefaultChar(uint64_t someSupportedTypes, char aChar);
 
 	//-------------------------------------------------------------------------------------------------
 	// Useful functon for recursive types, returns maximum length needed

@@ -175,6 +175,21 @@ namespace MSF_CustomPrint
 		MSF_ASSERT(index >= 0);
 		while (index >= 0)
 		{
+			MSF_ASSERT(theDefaultPrintCharacters[index] == 0, "Type %d(%x) is already set to %c", index, 1 << index, aChar);
+			if (theDefaultPrintCharacters[index] == 0)
+				theDefaultPrintCharacters[index] = aChar;
+
+			someSupportedTypes &= ~(1 << index);
+			index = GetFirstSetBit(someSupportedTypes);
+		}
+	}
+	//-------------------------------------------------------------------------------------------------
+	void OverrideTypesDefaultChar(uint64_t someSupportedTypes, char aChar)
+	{
+		int index = GetFirstSetBit(someSupportedTypes);
+		MSF_ASSERT(index >= 0);
+		while (index >= 0)
+		{
 			theDefaultPrintCharacters[index] = aChar;
 
 			someSupportedTypes &= ~(1 << index);
@@ -209,7 +224,7 @@ namespace MSF_CustomPrint
 				MSF_StringFormatChar::ValidateUTF8, MSF_StringFormatChar::ValidateUTF16, MSF_StringFormatChar::ValidateUTF32,
 				MSF_StringFormatChar::PrintUTF8, MSF_StringFormatChar::PrintUTF16, MSF_StringFormatChar::PrintUTF32
 			};
-			RegisterDefaultPrintFunction('c', MSF_StringFormatChar::ValidTypes, printer);
+			RegisterPrintFunction('c', MSF_StringFormatChar::ValidTypes, printer);
 			RegisterPrintFunction('C', MSF_StringFormatChar::ValidTypes, printer);
 		}
 

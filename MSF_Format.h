@@ -20,8 +20,8 @@ public:
         Type16      = (1 << 2),
         Type32      = (1 << 3),
         Type64      = (1 << 4),
-        Typefloat = (1 << 5),
-        Typedouble = (1 << 6),
+        Typefloat	= (1 << 5),
+        Typedouble	= (1 << 6),
 		// END DO NOT MOVE
 
 		TypeUserIndex = 8, // first user type, can go up to number of bits in uint32_t
@@ -200,18 +200,16 @@ class MSF_StringFormatTemplate
 {
 public:
 	Char const* GetString() const { return myString; }
-	MSF_StringFormatType const* GetArgs() const { return myArgs; }
+	MSF_StringFormatType const* GetArgs() const { return (MSF_StringFormatType const* )(this + 1); }
 	uint32_t NumArgs() const { return myNumArgs; }
 
 protected:
-	MSF_StringFormatTemplate(Char const* aString, MSF_StringFormatType* someArgs, uint32_t aCount)
+	MSF_StringFormatTemplate(Char const* aString, uint32_t aCount)
 		: myString(aString)
-		, myArgs(someArgs)
 		, myNumArgs(aCount)
 	{}
 
 	Char const* myString;
-	MSF_StringFormatType* myArgs;
 	uint32_t myNumArgs;
 };
 
@@ -220,10 +218,10 @@ extern template class MSF_StringFormatTemplate<char16_t>;
 extern template class MSF_StringFormatTemplate<char32_t>;
 extern template class MSF_StringFormatTemplate<wchar_t>;
 
-using MSF_StringFormat = MSF_StringFormatTemplate<char>;
-using MSF_StringFormatUTF16 = MSF_StringFormatTemplate<char16_t>;
-using MSF_StringFormatUTF32 = MSF_StringFormatTemplate<char32_t>;
-using MSF_StringFormatWChar = MSF_StringFormatTemplate<wchar_t>;
+typedef MSF_StringFormatTemplate<char> MSF_StringFormat;
+typedef MSF_StringFormatTemplate<char16_t> MSF_StringFormatUTF16;
+typedef MSF_StringFormatTemplate<char32_t> MSF_StringFormatUTF32;
+typedef MSF_StringFormatTemplate<wchar_t> MSF_StringFormatWChar;
 
 //-------------------------------------------------------------------------------------------------
 // Holds all the arguments for a printable string
@@ -233,7 +231,7 @@ class MSF_StringFormatContainer : public MSF_StringFormatTemplate<Char>
 {
 public:
 	MSF_StringFormatContainer(Char const* aString, Args const&... args)
-		: MSF_StringFormatTemplate<Char>(aString, myArgs, sizeof...(Args))
+		: MSF_StringFormatTemplate<Char>(aString, sizeof...(Args))
 		, myArgs { typename MSF_StringFormatTypeLookup<Args>::Format(args)... }
 	{
 	}
@@ -247,7 +245,7 @@ class MSF_StringFormatContainer<Char> : public MSF_StringFormatTemplate<Char>
 {
 public:
 	MSF_StringFormatContainer(Char const* aString)
-		: MSF_StringFormatTemplate<Char>(aString, nullptr, 0)
+		: MSF_StringFormatTemplate<Char>(aString, 0)
 	{
 	}
 };

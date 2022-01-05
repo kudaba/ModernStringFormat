@@ -10,6 +10,11 @@
 #include <windows.h>
 #endif
 
+template class MSF_StringFormatTemplate<char>;
+template class MSF_StringFormatTemplate<char16_t>;
+template class MSF_StringFormatTemplate<char32_t>;
+template class MSF_StringFormatTemplate<wchar_t>;
+
 //-------------------------------------------------------------------------------------------------
 // Types of errors that can occur during print validation
 //-------------------------------------------------------------------------------------------------
@@ -893,19 +898,22 @@ intptr_t MSF_FormatStringShared(MSF_StringFormatTemplate<Char> const& aStringFor
 	MSF_ASSERT(printed <= (size_t)result.MaxBufferLength - 1);
 	return printed;
 }
-
+//-------------------------------------------------------------------------------------------------
 intptr_t MSF_FormatString(MSF_StringFormat const& aStringFormat, char* aBuffer, size_t aBufferLength, size_t anOffset, char* (*aReallocFunction)(char*, size_t, void*), void* aUserData)
 {
 	return MSF_FormatStringShared(aStringFormat, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
 }
+//-------------------------------------------------------------------------------------------------
 intptr_t MSF_FormatString(MSF_StringFormatUTF16 const& aStringFormat, char16_t* aBuffer, size_t aBufferLength, size_t anOffset, char16_t* (*aReallocFunction)(char16_t*, size_t, void*), void* aUserData)
 {
 	return MSF_FormatStringShared(aStringFormat, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
 }
+//-------------------------------------------------------------------------------------------------
 intptr_t MSF_FormatString(MSF_StringFormatUTF32 const& aStringFormat, char32_t* aBuffer, size_t aBufferLength, size_t anOffset, char32_t* (*aReallocFunction)(char32_t*, size_t, void*), void* aUserData)
 {
 	return MSF_FormatStringShared(aStringFormat, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
 }
+//-------------------------------------------------------------------------------------------------
 intptr_t MSF_FormatString(MSF_StringFormatWChar const& aStringFormat, wchar_t* aBuffer, size_t aBufferLength, size_t anOffset, wchar_t* (*aReallocFunction)(wchar_t*, size_t, void*), void* aUserData)
 {
 #if WCHAR_MAX == UINT16_MAX
@@ -927,7 +935,3 @@ intptr_t MSF_FormatString(MSF_StringFormatWChar const& aStringFormat, wchar_t* a
 #endif
 }
 
-template class MSF_StringFormatTemplate<char>;
-template class MSF_StringFormatTemplate<char16_t>;
-template class MSF_StringFormatTemplate<char32_t>;
-template class MSF_StringFormatTemplate<wchar_t>;

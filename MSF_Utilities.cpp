@@ -151,6 +151,21 @@ void MSF_CopyCharsShared(Char* aBuffer, Char const* aBufferEnd, Char const* aSou
     }
 }
 //-------------------------------------------------------------------------------------------------
+void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, char const* aSource)
+{
+    MSF_CopyCharsShared(aBuffer, aBufferEnd, aSource, MSF_Strlen(aSource) + 1);
+}
+//-------------------------------------------------------------------------------------------------
+void MSF_CopyChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16_t const* aSource)
+{
+    MSF_CopyCharsShared(aBuffer, aBufferEnd, aSource, MSF_Strlen(aSource) + 1);
+}
+//-------------------------------------------------------------------------------------------------
+void MSF_CopyChars(char32_t* aBuffer, char32_t const* aBufferEnd, char32_t const* aSource)
+{
+    MSF_CopyCharsShared(aBuffer, aBufferEnd, aSource, MSF_Strlen(aSource) + 1);
+}
+//-------------------------------------------------------------------------------------------------
 void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, char const* aSource, size_t aSourceLength)
 {
     MSF_CopyCharsShared(aBuffer, aBufferEnd, aSource, aSourceLength);

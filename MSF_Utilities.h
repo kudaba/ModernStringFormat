@@ -72,6 +72,13 @@ extern void MSF_SplatChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16
 extern void MSF_SplatChars(char32_t* aBuffer, char32_t const* aBufferEnd, char32_t aValue, size_t aCount);
 
 //-------------------------------------------------------------------------------------------------
+// Basic safe strcpy
+//-------------------------------------------------------------------------------------------------
+extern void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, char const* aSource);
+extern void MSF_CopyChars(char16_t* aBuffer, char16_t const* aBufferEnd, char16_t const* aSource);
+extern void MSF_CopyChars(char32_t* aBuffer, char32_t const* aBufferEnd, char32_t const* aSource);
+
+//-------------------------------------------------------------------------------------------------
 // This is equivalent to memmove but safe by default
 //-------------------------------------------------------------------------------------------------
 extern void MSF_CopyChars(char* aBuffer, char const* aBufferEnd, char const* aSource, size_t aSourceLength);

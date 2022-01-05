@@ -331,6 +331,15 @@ namespace MSF_StringFormatString
 	{
 		return PrintShared(aBuffer, aBufferEnd, aData);
 	}
+
+	size_t CopyLength(MSF_StringFormatType const& aValue)
+	{
+		if (aValue.myUserData & MSF_StringFormatType::UTF32)
+			return (MSF_Strlen(aValue.myUTF32String) + 1) * 4;
+		if (aValue.myUserData & MSF_StringFormatType::UTF16)
+			return (MSF_Strlen(aValue.myUTF16String) + 1) * 2;
+		return MSF_Strlen(aValue.myString) + 1;
+	}
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------

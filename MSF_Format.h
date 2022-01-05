@@ -319,6 +319,14 @@ intptr_t MSF_Format(wchar_t* aBuffer, intptr_t aSize, wchar_t const* aString, Ar
 #endif
 
 //-------------------------------------------------------------------------------------------------
+// Make a backup copy of string format structure. This will request an allocation to hold all relevant data.
+//-------------------------------------------------------------------------------------------------
+extern MSF_StringFormat const* MSF_CopyStringFormat(MSF_StringFormat const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
+extern MSF_StringFormatUTF16 const* MSF_CopyStringFormat(MSF_StringFormatUTF16 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
+extern MSF_StringFormatUTF32 const* MSF_CopyStringFormat(MSF_StringFormatUTF32 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
+extern MSF_StringFormatWChar const* MSF_CopyStringFormat(MSF_StringFormatWChar const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
+
+//-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 #if !defined(MSF_DEFAULT_FMT_SIZE)
 #define MSF_DEFAULT_FMT_SIZE 512

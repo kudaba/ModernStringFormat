@@ -16,6 +16,13 @@
 #endif
 
 //-------------------------------------------------------------------------------------------------
+// Set alignment to use when making a copy of a string format object, must be power of 2
+//-------------------------------------------------------------------------------------------------
+#if !defined(MSF_COPY_ALIGNMENT)
+#define MSF_COPY_ALIGNMENT 4
+#endif
+
+//-------------------------------------------------------------------------------------------------
 // Formatting options:
 // When MSF_FORMAT_LOCAL_PLATFORM is enabled, then some formatting options are adjusted to adhere
 // to local platforms versions of printf. When disabled then users can override the specific options

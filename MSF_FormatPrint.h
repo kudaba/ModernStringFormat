@@ -58,12 +58,19 @@ struct MSF_CustomPrinter
 	size_t(*ValidateUTF8)(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue);
 	size_t(*ValidateUTF16)(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue);
 	size_t(*ValidateUTF32)(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue);
+
 	//-------------------------------------------------------------------------------------------------
 	// Print out your string to the output buffer and return characters printed
 	//-------------------------------------------------------------------------------------------------
 	size_t(*PrintUTF8)(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aPrintData);
 	size_t(*PrintUTF16)(char16_t* aBuffer, char16_t const* aBufferEnd, MSF_PrintData const& aPrintData);
 	size_t(*PrintUTF32)(char32_t* aBuffer, char32_t const* aBufferEnd, MSF_PrintData const& aPrintData);
+
+	//-------------------------------------------------------------------------------------------------
+	// For any type that is not embedded in the format type (i.e. more than 8 bytes), you can optionally
+	// set this helper to get the number of bytes to copy when backing up the format for future printing
+	//-------------------------------------------------------------------------------------------------
+	size_t(*CopyLength)(MSF_StringFormatType const& aValue);
 
 	template <typename Char>
 	size_t Validate(MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue) const;
@@ -107,6 +114,11 @@ namespace MSF_CustomPrint
 	// Force the default print function for a set of types to a new value
 	//-------------------------------------------------------------------------------------------------
 	void OverrideTypesDefaultChar(uint64_t someSupportedTypes, char aChar);
+
+	//-------------------------------------------------------------------------------------------------
+	// Copy length handling for types. This is only required for types that are referenced by pointer.
+	//-------------------------------------------------------------------------------------------------
+	void RegisterTypeCopyLength(char aChar, size_t(*aCopyLength)(MSF_StringFormatType const& aValue));
 
 	//-------------------------------------------------------------------------------------------------
 	// Useful functon for recursive types, returns maximum length needed

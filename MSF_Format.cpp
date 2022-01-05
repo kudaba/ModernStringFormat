@@ -2,6 +2,7 @@
 #include "MSF_Assert.h"
 #include "MSF_UTF.h"
 #include "MSF_Utilities.h"
+#include <new>
 
 #if _MSC_VER
 #define STRICT
@@ -203,6 +204,23 @@ namespace MSF_CustomPrint
 	}
 
 	//-------------------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------------------
+	void RegisterTypeCopyLength(char aChar, size_t(*aCopyLength)(MSF_StringFormatType const& aValue))
+	{
+		RegisteredChar& registered = theRegisteredChars[GetCharIndex(aChar)];
+		MSF_ASSERT(registered.Printer.PrintUTF16, "Copy Length can only apply to already registered type");
+		MSF_ASSERT(registered.Printer.CopyLength == nullptr || registered.Printer.CopyLength == aCopyLength);
+		registered.Printer.CopyLength = aCopyLength;
+	}
+	//-------------------------------------------------------------------------------------------------
+	size_t GetTypeCopyLength(MSF_StringFormatType const& aValue)
+	{
+		char const printChar = theDefaultPrintCharacters[GetFirstSetBit(aValue.myType)];
+		RegisteredChar const& registered = theRegisteredChars[GetCharIndex(printChar)];
+		return registered.Printer.CopyLength ? registered.Printer.CopyLength(aValue) : 0;
+	}
+
+	//-------------------------------------------------------------------------------------------------
 	// For a given type, get the character used to print it by default.
 	// Special case for signed integers and char type.
 	//-------------------------------------------------------------------------------------------------
@@ -240,6 +258,7 @@ namespace MSF_CustomPrint
 			};
 			RegisterDefaultPrintFunction('s', MSF_StringFormatString::ValidTypes, printer);
 			RegisterPrintFunction('S', MSF_StringFormatString::ValidTypes, printer);
+			RegisterTypeCopyLength('s', MSF_StringFormatString::CopyLength);
 		}
 
 		{
@@ -935,3 +954,91 @@ intptr_t MSF_FormatString(MSF_StringFormatWChar const& aStringFormat, wchar_t* a
 #endif
 }
 
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+template <typename Char>
+class MSF_StringFormatCopier : public MSF_StringFormatTemplate<Char>
+{
+public:
+	MSF_StringFormatCopier(Char const* aString, uint32_t aCount)
+		: MSF_StringFormatTemplate<Char>(aString, aCount)
+	{}
+
+	static MSF_StringFormatTemplate<Char> const* Copy(MSF_StringFormatTemplate<Char> const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
+	{
+		MSF_StringFormatType const* sourceArgs = aStringFormat.GetArgs();
+		uint32_t const nargs = aStringFormat.NumArgs();
+
+		size_t const baseLength = sizeof(MSF_StringFormatTemplate<Char>) + sizeof(MSF_StringFormatType) * nargs;
+
+		size_t argSizes[MSF_MAX_ARGUMENTS];
+		size_t argsTotalLength = 0;
+		for (uint32_t arg = 0; arg < nargs; ++arg)
+		{
+			argSizes[arg] = MSF_CustomPrint::GetTypeCopyLength(sourceArgs[arg]);
+			argSizes[arg] = (argSizes[arg] + (MSF_COPY_ALIGNMENT - 1)) & (~(MSF_COPY_ALIGNMENT - 1));
+			argsTotalLength += argSizes[arg];
+		}
+
+		size_t const formatLength = (anIncludeFormatString ? MSF_Strlen(aStringFormat.GetString()) + 1 : 0) * sizeof(Char);
+		size_t const totalLength = baseLength + formatLength + argsTotalLength;
+
+		MSF_StringFormatTemplate<Char>* stringFormatCopy = (MSF_StringFormatTemplate<Char>*)anAlloc(totalLength);
+		if (stringFormatCopy)
+		{
+			MSF_StringFormatType* destArgs = (MSF_StringFormatType*)stringFormatCopy->GetArgs();
+			char* data = ((char*)stringFormatCopy) + baseLength;
+
+			if (anIncludeFormatString)
+			{
+				new (stringFormatCopy) MSF_StringFormatCopier((Char const*)data, nargs);
+				MSF_CopyChars(data, data + formatLength, (char const*)aStringFormat.GetString(), formatLength);
+				data += formatLength;
+			}
+			else
+				new (stringFormatCopy) MSF_StringFormatCopier(aStringFormat.GetString(), nargs);
+
+			for (uint32_t arg = 0; arg < nargs; ++arg)
+			{
+				MSF_StringFormatType const& sourceArg = sourceArgs[arg];
+				MSF_StringFormatType& destArg = destArgs[arg];
+				size_t const argSize = argSizes[arg];
+
+				if (argSize)
+				{
+					destArg.myString = data;
+					MSF_CopyChars(data, data + argSizes[arg], sourceArg.myString, argSize);
+					data += argSizes[arg];
+				}
+				else
+					destArg.myValue64 = sourceArg.myValue64;
+
+				destArg.myType = sourceArg.myType;
+				destArg.myUserData = sourceArg.myUserData;
+			}
+
+			MSF_ASSERT(data == ((char const*)stringFormatCopy) + totalLength);
+		}
+		return stringFormatCopy;
+	}
+};
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormat const* MSF_CopyStringFormat(MSF_StringFormat const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<char>::Copy(aStringFormat, anAlloc, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormatUTF16 const* MSF_CopyStringFormat(MSF_StringFormatUTF16 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<char16_t>::Copy(aStringFormat, anAlloc, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormatUTF32 const* MSF_CopyStringFormat(MSF_StringFormatUTF32 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<char32_t>::Copy(aStringFormat, anAlloc, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormatWChar const* MSF_CopyStringFormat(MSF_StringFormatWChar const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<wchar_t>::Copy(aStringFormat, anAlloc, anIncludeFormatString);
+}

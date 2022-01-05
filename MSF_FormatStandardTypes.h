@@ -34,6 +34,8 @@ namespace MSF_StringFormatString
 	size_t PrintUTF8(char* aBuffer, char const* aBufferEnd, MSF_PrintData const& aData);
 	size_t PrintUTF16(char16_t* aBuffer, char16_t const* aBufferEnd, MSF_PrintData const& aData);
 	size_t PrintUTF32(char32_t* aBuffer, char32_t const* aBufferEnd, MSF_PrintData const& aData);
+
+	size_t CopyLength(MSF_StringFormatType const& aValue);
 }
 
 //-------------------------------------------------------------------------------------------------

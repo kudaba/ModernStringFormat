@@ -638,17 +638,12 @@ template <typename Char>
 class MSF_StringFormatter
 {
 public:
-	enum
-	{
-		MaxArguments = 32,
-	};
-
 	MSF_StringFormatter() : myPrintedCharacters(0) {}
 
 	MSF_PrintResult PrepareFormatter(MSF_StringFormatTemplate<Char> const& aStringFormat)
 	{
 		uint32_t const inputCount = aStringFormat.NumArgs();
-		if (inputCount > MaxArguments)
+		if (inputCount > MSF_MAX_ARGUMENTS)
 			return MSF_PrintResult(ER_TooManyInputs, inputCount, 0);
 
 		uint32_t inputIndex = 0;
@@ -680,7 +675,7 @@ public:
 					break;
 				default:
 					// prepare print information
-					if (myPrintedCharacters == MaxArguments)
+					if (myPrintedCharacters == MSF_MAX_ARGUMENTS)
 						return MSF_PrintResult(ER_TooManyPrints, myPrintedCharacters, int(str - myPrintString));
 
 					MSF_PrintData& printData = myPrintData[myPrintedCharacters++];
@@ -856,7 +851,7 @@ public:
 
 private:
 
-	MSF_PrintData myPrintData[MaxArguments];
+	MSF_PrintData myPrintData[MSF_MAX_ARGUMENTS];
 	Char const* myPrintString;
 	size_t myPrintedCharacters;
 };

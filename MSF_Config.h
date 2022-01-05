@@ -8,6 +8,14 @@
 //-------------------------------------------------------------------------------------------------
 
 //-------------------------------------------------------------------------------------------------
+// Set the maximum number of arguments that can be provided to any print statement. Mainly affects
+// stack space usage
+//-------------------------------------------------------------------------------------------------
+#if !defined(MSF_MAX_ARGUMENTS)
+#define MSF_MAX_ARGUMENTS 32
+#endif
+
+//-------------------------------------------------------------------------------------------------
 // Formatting options:
 // When MSF_FORMAT_LOCAL_PLATFORM is enabled, then some formatting options are adjusted to adhere
 // to local platforms versions of printf. When disabled then users can override the specific options

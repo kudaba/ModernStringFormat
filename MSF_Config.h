@@ -23,6 +23,16 @@
 #endif
 
 //-------------------------------------------------------------------------------------------------
+// When pedantic error checking is enable, strings will have additional checks
+// i.e. "%++d" will error about the duplicate flags
+// If pedantic error checking is disabled then duplicate values will just overwrite previous
+// values or simply be redundant
+//-------------------------------------------------------------------------------------------------
+#if !defined(MSF_ERROR_PEDANTIC)
+#define MSF_ERROR_PEDANTIC 0
+#endif
+
+//-------------------------------------------------------------------------------------------------
 // Formatting options:
 // When MSF_FORMAT_LOCAL_PLATFORM is enabled, then some formatting options are adjusted to adhere
 // to local platforms versions of printf. When disabled then users can override the specific options

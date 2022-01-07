@@ -27,9 +27,13 @@ enum MSF_PrintResultType
 	ER_TooManyPrints,
 	ER_InconsistentPrintType,
 	ER_UnexpectedEnd,
+	ER_DuplicateFlag,
+	ER_FlagPosition,
 	ER_InvalidPrintCharacter,
 	ER_TypeMismatch,
 	ER_UnregisteredChar,
+	ER_WildcardType,
+	ER_DuplicateWildcard,
 
 	// csharp errors
 	ER_UnexpectedBrace,
@@ -50,9 +54,13 @@ static char const* thePrintErrors[] =
 	"ER_TooManyPrints: Too many print statements in string {0}",
 	"ER_InconsistentPrintType: Inconsistent print type '{0}' at {1}. 1=Auto(%% or {{}}), 2=Specific({{X}}). Strings shouldn't mix modes.",
 	"ER_UnexpectedEnd: Unexpected end of format string",
+	"ER_DuplicateFlag: Duplicate Flag '{0:c}' found at {1}.",
+	"ER_FlagPosition: Flag '{0:c}' at {1} should not appear after width or precision specifiers",
 	"ER_InvalidPrintCharacter: Invalid print character '{0:c}' at {1}. Only lower and upper case ascii letters supported",
 	"ER_TypeMismatch: Type mismatch for print character '{0:c}' at {1}",
 	"ER_UnregisteredChar: Unregistered print character  '{0:c}' at {1}",
+	"ER_WildcardType: Incorrect type specified for wildcard flag at {1}",
+	"ER_DuplicateWildcard: Only one wildcard character should be specified at {1}",
 
 	"ER_UnexpectedBrace: Unexpected '}}' at {1}. Did you forget to double up your braces?",
 	"ER_ExpectedIndex: Expected an index at {1}",
@@ -408,7 +416,7 @@ namespace MSF_CustomPrint
 	// Normal printf
 	//-------------------------------------------------------------------------------------------------
 	template <typename Char>
-	MSF_PrintResult SetupPrintfInfo(MSF_PrintData& aPrintData, Char const*& anInput)
+	MSF_PrintResult SetupPrintfInfo(MSF_PrintData& aPrintData, Char const*& anInput, uint32_t& anInputIndex, uint32_t anInputCount)
 	{
 		// gather the parts
 		// [flags] [width] [.precision] type
@@ -417,22 +425,119 @@ namespace MSF_CustomPrint
 		// is known in the format type.  this also frees up
 		// more room for custom types
 
-		bool leadingZero = true; // to know if we found a 0 before or after other numbers
 		uint32_t width = 0;
 		uint32_t precision = 0;
+
+		bool leadingZero = true; // to know if we found a 0 before or after other numbers
+		bool valueSet = false;
+		bool valueClosed = false;
+		uint32_t* value = &width;
 		for (Char character = *anInput++; character; character = *anInput++)
 		{
 			// read until non-flag is found
 			switch (character)
 			{
-			case '-': aPrintData.myFlags |= PRINT_LEFTALIGN; aPrintData.myFlags &= ~PRINT_ZERO; break;
-			case '+': aPrintData.myFlags |= PRINT_SIGN; break;
-			case ' ': aPrintData.myFlags |= PRINT_BLANK; break;
-			case '#': aPrintData.myFlags |= PRINT_PREFIX; break;
-			case '.': aPrintData.myFlags |= PRINT_PRECISION; break;
+			case '-':
+#if MSF_ERROR_PEDANTIC
+				if (aPrintData.myFlags & PRINT_LEFTALIGN)
+				{
+					return MSF_PrintResult(ER_DuplicateFlag, character);
+				}
+				if (value != &width || valueSet)
+				{
+					return MSF_PrintResult(ER_FlagPosition, character);
+				}
+#endif
+				aPrintData.myFlags |= PRINT_LEFTALIGN;
+				aPrintData.myFlags &= ~PRINT_ZERO;
+				break;
+			case '+':
+#if MSF_ERROR_PEDANTIC
+				if (aPrintData.myFlags & PRINT_SIGN)
+				{
+					return MSF_PrintResult(ER_DuplicateFlag, character);
+				}
+				if (value != &width || valueSet)
+				{
+					return MSF_PrintResult(ER_FlagPosition, character);
+				}
+#endif
+				aPrintData.myFlags |= PRINT_SIGN;
+				break;
+			case ' ':
+#if MSF_ERROR_PEDANTIC
+				if (aPrintData.myFlags & PRINT_BLANK)
+				{
+					return MSF_PrintResult(ER_DuplicateFlag, character);
+				}
+				if (value != &width || valueSet)
+				{
+					return MSF_PrintResult(ER_FlagPosition, character);
+				}
+#endif
+
+				aPrintData.myFlags |= PRINT_BLANK;
+				break;
+			case '#':
+#if MSF_ERROR_PEDANTIC
+				if (aPrintData.myFlags & PRINT_PREFIX)
+				{
+					return MSF_PrintResult(ER_DuplicateFlag, character);
+				}
+				if (value != &width || valueSet)
+				{
+					return MSF_PrintResult(ER_FlagPosition, character);
+				}
+#endif
+				aPrintData.myFlags |= PRINT_PREFIX;
+				break;
+			case '.':
+#if MSF_ERROR_PEDANTIC
+				if (aPrintData.myFlags & PRINT_PRECISION)
+				{
+					return MSF_PrintResult(ER_DuplicateFlag, character);
+				}
+#endif
+				aPrintData.myFlags |= PRINT_PRECISION;
+				leadingZero = false;
+				value = &precision;
+				valueSet = false;
+				valueClosed = false;
+				break;
+			case '*':
+			{
+				if ((aPrintData.myValue->myType & MSF_StringFormatInt::ValidTypes) == 0)
+					return MSF_PrintResult(ER_WildcardType);
+
+				if (anInputIndex == anInputCount)
+					return MSF_PrintResult(ER_IndexOutOfRange, anInputIndex);
+
+				if (valueClosed || valueSet)
+					return MSF_PrintResult(ER_DuplicateWildcard);
+
+				{
+					uint32_t size = 0;
+					switch (aPrintData.myValue->myType)
+					{
+					case MSF_StringFormatType::Type8: size = aPrintData.myValue->myValue8; break;
+					case MSF_StringFormatType::Type16: size = aPrintData.myValue->myValue16; break;
+					case MSF_StringFormatType::Type32: size = aPrintData.myValue->myValue32; break;
+					case MSF_StringFormatType::Type64: size = (uint32_t)aPrintData.myValue->myValue32; break; // sure hope someone isn't trying 2gb+ width or precision O.o
+					}
+
+					*value = size;
+					valueSet = valueClosed = true;
+					leadingZero = false;
+
+					++aPrintData.myValue;
+					++anInputIndex;
+				}
+				break;
+			}
 			case '0':
 				if (leadingZero)
 				{
+					leadingZero = false;
 					if (!(aPrintData.myFlags & PRINT_LEFTALIGN))
 					{
 						aPrintData.myFlags |= PRINT_ZERO;
@@ -448,15 +553,12 @@ namespace MSF_CustomPrint
 			case '7':
 			case '8':
 			case '9':
+				if (valueClosed)
+					return MSF_PrintResult(ER_DuplicateWildcard);
+
 				leadingZero = false;
-				if (!(aPrintData.myFlags & PRINT_PRECISION))
-				{
-					width = (width * 10) + (character - '0');
-				}
-				else
-				{
-					precision = (precision * 10) + (character - '0');
-				}
+				valueSet = true;
+				*value = (*value * 10) + (character - '0');
 				break;
 			case 'I': // look for I[(32|64)](d|i|o|u|x|X)
 				{
@@ -744,7 +846,7 @@ public:
 					}
 					
 					// Process any format specifiers
-					MSF_PrintResult result = character == '%' ? MSF_CustomPrint::SetupPrintfInfo(printData, str) : MSF_CustomPrint::SetupFormatInfo(printData, str);
+					MSF_PrintResult result = character == '%' ? MSF_CustomPrint::SetupPrintfInfo(printData, str, inputIndex, inputCount) : MSF_CustomPrint::SetupFormatInfo(printData, str);
 
 					if (result.MaxBufferLength < 0)
 					{

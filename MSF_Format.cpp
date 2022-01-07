@@ -964,7 +964,8 @@ public:
 		: MSF_StringFormatTemplate<Char>(aString, aCount)
 	{}
 
-	static MSF_StringFormatTemplate<Char> const* Copy(MSF_StringFormatTemplate<Char> const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
+	template <typename Alloc>
+	static MSF_StringFormatTemplate<Char> const* Copy(MSF_StringFormatTemplate<Char> const& aStringFormat, Alloc anAlloc, bool anIncludeFormatString)
 	{
 		MSF_StringFormatType const* sourceArgs = aStringFormat.GetArgs();
 		uint32_t const nargs = aStringFormat.NumArgs();
@@ -1041,4 +1042,24 @@ MSF_StringFormatUTF32 const* MSF_CopyStringFormat(MSF_StringFormatUTF32 const& a
 MSF_StringFormatWChar const* MSF_CopyStringFormat(MSF_StringFormatWChar const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
 {
 	return MSF_StringFormatCopier<wchar_t>::Copy(aStringFormat, anAlloc, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormat const* MSF_CopyStringFormat(MSF_StringFormat const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<char>::Copy(aStringFormat, [&](size_t aSize) { return anAlloc(aSize, aUserData); }, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormatUTF16 const* MSF_CopyStringFormat(MSF_StringFormatUTF16 const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<char16_t>::Copy(aStringFormat, [&](size_t aSize) { return anAlloc(aSize, aUserData); }, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormatUTF32 const* MSF_CopyStringFormat(MSF_StringFormatUTF32 const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<char32_t>::Copy(aStringFormat, [&](size_t aSize) { return anAlloc(aSize, aUserData); }, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormatWChar const* MSF_CopyStringFormat(MSF_StringFormatWChar const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<wchar_t>::Copy(aStringFormat, [&](size_t aSize) { return anAlloc(aSize, aUserData); }, anIncludeFormatString);
 }

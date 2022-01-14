@@ -19,6 +19,26 @@ enum MSF_PrintFlags
 };
 
 //-------------------------------------------------------------------------------------------------
+// Control the action taken when an error occurs
+//-------------------------------------------------------------------------------------------------
+enum class MSF_ErrorMode
+{
+	Silent,			// Format calls will return <0 and print nothing
+	WriteString,	// Format calls will write as much error info into string bufer as possible
+	Assert,			// Format calls will assert with error information
+	UseGlobal,		// For thread local states, will use whatever the global is
+};
+
+//-------------------------------------------------------------------------------------------------
+// Control how certain errors are reported
+//-------------------------------------------------------------------------------------------------
+enum MSF_ErrorFlags
+{
+	UseGlobal = 1 << 1,
+	RelaxedCSharpFormat = 1 << 2, // Don't consider incomplete c# formatting an error. This useful if upgrading from a printf style system.
+};
+
+//-------------------------------------------------------------------------------------------------
 // Print Data describes all the extra information passed with the type to be printed
 //-------------------------------------------------------------------------------------------------
 struct MSF_PrintData
@@ -138,16 +158,13 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	// Set how you want string formats to handle errors. Can be set globaller or on a per thread basis
 	//-------------------------------------------------------------------------------------------------
-	enum ErrorMode
-	{
-		Silent,			// Format calls will return <0 and print nothing
-		WriteString,	// Format calls will write as much error info into string bufer as possible
-		Assert,			// Format calls will assert with error information
-		UseGlobal,		// For thread local states, will use whatever the global is
-	};
-	void SetGlobalErrorMode(ErrorMode aMode);
-	void SetLocalErrorMode(ErrorMode aMode);
+	void SetGlobalErrorMode(MSF_ErrorMode aMode);
+	void SetLocalErrorMode(MSF_ErrorMode aMode);
 	void ClearLocalErrorMode();
+
+	void SetGlobalErrorFlags(MSF_ErrorFlags someFlags);
+	void SetLocalErrorFlags(MSF_ErrorFlags someFlags);
+	void ClearLocalErrorFlags();
 };
 
 template<> inline size_t MSF_CustomPrint::ValidateType<char>(char aChar, MSF_PrintData& aPrintData, MSF_StringFormatType const& aValue) { return MSF_CustomPrint::ValidateTypeUTF8(aChar, aPrintData, aValue); }

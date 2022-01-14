@@ -91,6 +91,8 @@ struct MSF_PrintResult
 		return MSF_Format(anErrorBuffer, thePrintErrors[Error], Info, Location, aBufferLength);
 	}
 
+	bool HasError() const { return MaxBufferLength < 0; }
+
 	intptr_t MaxBufferLength;
 	MSF_PrintResultType Error;
 	uint64_t Info;
@@ -389,27 +391,55 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	// Error Handling
 	//-------------------------------------------------------------------------------------------------
-	ErrorMode theGlobalErrorMode = Silent;
-	ErrorMode thread_local theLocalErrorMode = UseGlobal;
+	MSF_ErrorMode theGlobalErrorMode = MSF_ErrorMode::Silent;
+	MSF_ErrorMode thread_local theLocalErrorMode = MSF_ErrorMode::UseGlobal;
 
-	void SetGlobalErrorMode(ErrorMode aMode)
+	MSF_ErrorFlags theGlobalErrorFlags;
+	MSF_ErrorFlags thread_local theLocalErrorFlags = MSF_ErrorFlags::UseGlobal;
+
+	void SetGlobalErrorMode(MSF_ErrorMode aMode)
 	{
 		theGlobalErrorMode = aMode;
 	}
-	void SetLocalErrorMode(ErrorMode aMode)
+	void SetLocalErrorMode(MSF_ErrorMode aMode)
 	{
-		MSF_ASSERT(theLocalErrorMode == UseGlobal, "Local error mode already in use");
+		MSF_ASSERT(theLocalErrorMode == MSF_ErrorMode::UseGlobal, "Local error mode already in use");
 		theLocalErrorMode = aMode;
 	}
 	void ClearLocalErrorMode()
 	{
-		theLocalErrorMode = UseGlobal;
+		theLocalErrorMode = MSF_ErrorMode::UseGlobal;
 	}
 
-	ErrorMode GetErrorMode()
+	MSF_ErrorMode GetErrorMode()
 	{
-		ErrorMode localMode = theLocalErrorMode;
-		return localMode == UseGlobal ? theGlobalErrorMode : localMode;
+		MSF_ErrorMode const localMode = theLocalErrorMode;
+		return localMode == MSF_ErrorMode::UseGlobal ? theGlobalErrorMode : localMode;
+	}
+
+	void SetGlobalErrorFlags(MSF_ErrorFlags someFlags)
+	{
+		theGlobalErrorFlags = someFlags;
+	}
+	void SetLocalErrorFlags(MSF_ErrorFlags someFlags)
+	{
+		MSF_ASSERT(theLocalErrorFlags == MSF_ErrorFlags::UseGlobal, "Local error mode already in use");
+		theLocalErrorFlags = someFlags;
+	}
+	void ClearLocalErrorFlags()
+	{
+		theLocalErrorFlags = MSF_ErrorFlags::UseGlobal;
+	}
+
+	MSF_ErrorFlags GetErrorFlags()
+	{
+		MSF_ErrorFlags const localFlags = theLocalErrorFlags;
+		return (localFlags & MSF_ErrorFlags::UseGlobal) ? theGlobalErrorFlags : localFlags;
+	}
+
+	bool IsRelaxedCSharpFormat()
+	{
+		return (GetErrorFlags() & MSF_ErrorFlags::RelaxedCSharpFormat) != 0;
 	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -729,7 +759,7 @@ namespace MSF_CustomPrint
 		{
 			++anInput;
 			if (!MSF_IsAsciiAlphaNumeric(*anInput))
-				return MSF_PrintResult(ER_InvalidPrintCharacter, aPrintData.myValue->myType, 0);
+				return MSF_PrintResult(ER_InvalidPrintCharacter, *anInput, 0);
 
 			aPrintData.myPrintChar = (char)*(anInput++);
 
@@ -741,7 +771,7 @@ namespace MSF_CustomPrint
 			MSF_ASSERT(precision < UINT16_MAX);
 			aPrintData.myPrecision = (uint16_t)precision;
 		}
-		else
+		else if (aPrintData.myValue)
 		{
 			aPrintData.myPrintChar = GetTypeDefaultPrintCharacters(*aPrintData.myValue);
 			if (!aPrintData.myPrintChar)
@@ -753,7 +783,7 @@ namespace MSF_CustomPrint
 
 		++anInput;
 
-		return ValidateTypeShared<Char>(aPrintData, *aPrintData.myValue);
+		return aPrintData.myValue ? ValidateTypeShared<Char>(aPrintData, *aPrintData.myValue) : MSF_PrintResult(0);
 	}
 }
 
@@ -819,9 +849,32 @@ public:
 						{
 							thisMode = Specific;
 
-							inputIndex = *(str++) - '0';
+							uint32_t nextInputIndex = *(str++) - '0';
 							while (MSF_IsDigit(*str))
-								inputIndex = inputIndex * 10 + *(str++);
+							{
+								nextInputIndex = nextInputIndex * 10 + (*(str++) - '0');
+
+								// This is not a perf issue in the loop since 99.9% of the time it's going to be a single character
+								// we detect the moment it goes out of range to support relaxed errors in the case someone wrote "{12345667}".
+								if (nextInputIndex >= MSF_MAX_ARGUMENTS*2)
+									break;
+							}
+
+							if (nextInputIndex >= inputCount)
+							{
+								// Only relax the error if it's at least 5 past the last input. This is to try to disambiguate
+								// between a user error and and non-print text. i.e. {123} is clearly out of range where {7} might just be a mistaken print
+								// This does mean there might be some small edge case errors like {12} with 7 real inputs will trigger an error vs a relax
+								if (nextInputIndex - inputCount > 5 && MSF_CustomPrint::IsRelaxedCSharpFormat())
+								{
+									--myPrintedCharacters;
+									break;
+								}
+
+								return MSF_PrintResult(ER_IndexOutOfRange, nextInputIndex);
+							}
+
+							inputIndex = nextInputIndex;
 						}
 					}
 
@@ -834,8 +887,21 @@ public:
 							return MSF_PrintResult(ER_InconsistentPrintType, printMode, int((Char const*)printData.myStart - myPrintString));
 					}
 
-					if (inputIndex >= inputCount)
+					if (printMode == Auto && inputIndex == inputCount)
+					{
+						// Before considering out of range make sure this is a valid print statement and not an csharp looking one
+						if (character == '{' && MSF_CustomPrint::IsRelaxedCSharpFormat())
+						{
+							printData.myValue = nullptr;
+							if (MSF_CustomPrint::SetupFormatInfo(printData, str).HasError())
+							{
+								--myPrintedCharacters;
+								break;
+							}
+						}
+
 						return MSF_PrintResult(ER_IndexOutOfRange, inputIndex);
+					}
 
 					printData.myValue = aData + inputIndex;
 
@@ -848,8 +914,19 @@ public:
 					// Process any format specifiers
 					MSF_PrintResult result = character == '%' ? MSF_CustomPrint::SetupPrintfInfo(printData, str, inputIndex, inputCount) : MSF_CustomPrint::SetupFormatInfo(printData, str);
 
-					if (result.MaxBufferLength < 0)
+					if (result.HasError())
 					{
+						if (character == '{' && MSF_CustomPrint::IsRelaxedCSharpFormat())
+						{
+							if (result.Error == ER_ExpectedWidth ||
+								result.Error == ER_InvalidPrintCharacter ||
+								result.Error == ER_ExpectedClosingBrace)
+							{
+								--myPrintedCharacters;
+								break;
+							}
+						}
+
 						result.Location = int(str - myPrintString);
 						return result;
 					}
@@ -860,9 +937,11 @@ public:
 				break;
 			}
 			case '}':
-				if (*str != '}')
+				if (*str == '}')
+					++str;
+				else if (!MSF_CustomPrint::IsRelaxedCSharpFormat())
 					return MSF_PrintResult(ER_UnexpectedBrace, 0, int(str - myPrintString));
-				++str;
+
 				break;
 			}
 		}
@@ -892,8 +971,8 @@ public:
 			{
 				while (read != myPrintData[i].myStart)
 				{
-					// if a print character is found, that's because there's two, skip one
-					if (*read == '%' || *read == '{' || *read == '}')
+					// if double control characters are found, skip one
+					if ((*read == '%' || *read == '{' || *read == '}') && read[0] == read[1])
 					{
 						++read;
 					}
@@ -912,8 +991,8 @@ public:
 
 		while (*read)
 		{
-			// if a '%' is found, that's because there's two, skip one
-			if (*read == '%' || *read == '{' || *read == '}')
+			// if double control characters are found, skip one
+			if ((*read == '%' || *read == '{' || *read == '}') && read[0] == read[1])
 			{
 				++read;
 			}
@@ -931,7 +1010,7 @@ public:
 
 	void ProcessError(MSF_PrintResult anError, Char* aBuffer, size_t aBufferLength, size_t anOffset, Char* (*aReallocFunction)(Char*, size_t, void*), void* aUserData)
 	{
-		MSF_CustomPrint::ErrorMode errorMode = MSF_CustomPrint::GetErrorMode();
+		MSF_ErrorMode errorMode = MSF_CustomPrint::GetErrorMode();
 		char errorMessage[256];
 		size_t errorLength = anError.ToString(errorMessage, aBufferLength);
 
@@ -941,7 +1020,7 @@ public:
 			aBuffer[MSF_IntMin(anOffset, aBufferLength-1)] = 0;
 		}
 
-		if (errorMode == MSF_CustomPrint::Assert)
+		if (errorMode == MSF_ErrorMode::Assert)
 		{
 #if MSF_ASSERTS_ENABLED
 			if (!MSF_IsAsserting())
@@ -950,7 +1029,7 @@ public:
 			}
 #endif
 		}
-		else if (errorMode == MSF_CustomPrint::WriteString)
+		else if (errorMode == MSF_ErrorMode::WriteString)
 		{
 			if (errorLength + anOffset > aBufferLength)
 			{
@@ -990,7 +1069,7 @@ intptr_t MSF_FormatStringShared(MSF_StringFormatTemplate<Char> const& aStringFor
 	MSF_StringFormatter<Char> formatter;
 	MSF_PrintResult result = formatter.PrepareFormatter(aStringFormat);
 
-	if (result.MaxBufferLength < 0)
+	if (result.HasError())
 	{
 		formatter.ProcessError(result, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
 		return -1;

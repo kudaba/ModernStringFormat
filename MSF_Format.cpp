@@ -28,12 +28,11 @@ enum MSF_PrintResultType
 	ER_InconsistentPrintType,
 	ER_UnexpectedEnd,
 	ER_DuplicateFlag,
-	ER_FlagPosition,
 	ER_InvalidPrintCharacter,
 	ER_TypeMismatch,
 	ER_UnregisteredChar,
 	ER_WildcardType,
-	ER_DuplicateWildcard,
+	ER_PrecisionWithoutValue,
 
 	// csharp errors
 	ER_UnexpectedBrace,
@@ -55,12 +54,11 @@ static char const* thePrintErrors[] =
 	"ER_InconsistentPrintType: Inconsistent print type '{0}' at {1}. 1=Auto(%% or {{}}), 2=Specific({{X}}). Strings shouldn't mix modes.",
 	"ER_UnexpectedEnd: Unexpected end of format string",
 	"ER_DuplicateFlag: Duplicate Flag '{0:c}' found at {1}.",
-	"ER_FlagPosition: Flag '{0:c}' at {1} should not appear after width or precision specifiers",
 	"ER_InvalidPrintCharacter: Invalid print character '{0:c}' at {1}. Only lower and upper case ascii letters supported",
 	"ER_TypeMismatch: Type mismatch for print character '{0:c}' at {1}",
 	"ER_UnregisteredChar: Unregistered print character  '{0:c}' at {1}",
 	"ER_WildcardType: Incorrect type specified for wildcard flag at {1}",
-	"ER_DuplicateWildcard: Only one wildcard character should be specified at {1}",
+	"ER_PrecisionWithoutValue: Precision specified but no value provided",
 
 	"ER_UnexpectedBrace: Unexpected '}}' at {1}. Did you forget to double up your braces?",
 	"ER_ExpectedIndex: Expected an index at {1}",
@@ -455,271 +453,214 @@ namespace MSF_CustomPrint
 		// is known in the format type.  this also frees up
 		// more room for custom types
 
-		uint32_t width = 0;
-		uint32_t precision = 0;
+#if MSF_ERROR_PEDANTIC
+#define SET_FLAG(flag) if (aPrintData.myFlags & flag) return MSF_PrintResult(ER_DuplicateFlag, character); aPrintData.myFlags |= flag;
+#else
+#define SET_FLAG(flag) aPrintData.myFlags |= flag;
+#endif
 
-		bool leadingZero = true; // to know if we found a 0 before or after other numbers
-		bool valueSet = false;
-		bool valueClosed = false;
-		uint32_t* value = &width;
-		for (Char character = *anInput++; character; character = *anInput++)
+		// Read Flags
+		for (Char character = *anInput; character; character = *++anInput)
 		{
 			// read until non-flag is found
 			switch (character)
 			{
 			case '-':
-#if MSF_ERROR_PEDANTIC
-				if (aPrintData.myFlags & PRINT_LEFTALIGN)
-				{
-					return MSF_PrintResult(ER_DuplicateFlag, character);
-				}
-				if (value != &width || valueSet)
-				{
-					return MSF_PrintResult(ER_FlagPosition, character);
-				}
-#endif
-				aPrintData.myFlags |= PRINT_LEFTALIGN;
+				SET_FLAG(PRINT_LEFTALIGN);
 				aPrintData.myFlags &= ~PRINT_ZERO;
-				break;
+				continue;
 			case '+':
-#if MSF_ERROR_PEDANTIC
-				if (aPrintData.myFlags & PRINT_SIGN)
-				{
-					return MSF_PrintResult(ER_DuplicateFlag, character);
-				}
-				if (value != &width || valueSet)
-				{
-					return MSF_PrintResult(ER_FlagPosition, character);
-				}
-#endif
-				aPrintData.myFlags |= PRINT_SIGN;
-				break;
+				SET_FLAG(PRINT_SIGN);
+				continue;
 			case ' ':
-#if MSF_ERROR_PEDANTIC
-				if (aPrintData.myFlags & PRINT_BLANK)
-				{
-					return MSF_PrintResult(ER_DuplicateFlag, character);
-				}
-				if (value != &width || valueSet)
-				{
-					return MSF_PrintResult(ER_FlagPosition, character);
-				}
-#endif
-
-				aPrintData.myFlags |= PRINT_BLANK;
-				break;
+				SET_FLAG(PRINT_BLANK);
+				continue;
 			case '#':
-#if MSF_ERROR_PEDANTIC
-				if (aPrintData.myFlags & PRINT_PREFIX)
-				{
-					return MSF_PrintResult(ER_DuplicateFlag, character);
-				}
-				if (value != &width || valueSet)
-				{
-					return MSF_PrintResult(ER_FlagPosition, character);
-				}
-#endif
-				aPrintData.myFlags |= PRINT_PREFIX;
-				break;
-			case '.':
-#if MSF_ERROR_PEDANTIC
-				if (aPrintData.myFlags & PRINT_PRECISION)
-				{
-					return MSF_PrintResult(ER_DuplicateFlag, character);
-				}
-#endif
-				aPrintData.myFlags |= PRINT_PRECISION;
-				leadingZero = false;
-				value = &precision;
-				valueSet = false;
-				valueClosed = false;
-				break;
-			case '*':
+				SET_FLAG(PRINT_PREFIX);
+				continue;
+			case '0':
+				if (!(aPrintData.myFlags & PRINT_LEFTALIGN))
+					SET_FLAG(PRINT_ZERO);
+				continue;
+			}
+			// no more flags
+			break;
+		}
+
+		// Width and precision
+		uint32_t widthPrecision[2] = {};
+		for (uint32_t i = 0; i < 2; ++i)
+		{
+			uint32_t& value = widthPrecision[i];
+
+			Char character = *anInput;
+
+			if (character == '*')
 			{
+				++anInput;
+
 				if ((aPrintData.myValue->myType & MSF_StringFormatInt::ValidTypes) == 0)
 					return MSF_PrintResult(ER_WildcardType);
 
 				if (anInputIndex == anInputCount)
 					return MSF_PrintResult(ER_IndexOutOfRange, anInputIndex);
 
-				if (valueClosed || valueSet)
-					return MSF_PrintResult(ER_DuplicateWildcard);
-
+				switch (aPrintData.myValue->myType)
 				{
-					uint32_t size = 0;
-					switch (aPrintData.myValue->myType)
-					{
-					case MSF_StringFormatType::Type8: size = aPrintData.myValue->myValue8; break;
-					case MSF_StringFormatType::Type16: size = aPrintData.myValue->myValue16; break;
-					case MSF_StringFormatType::Type32: size = aPrintData.myValue->myValue32; break;
-					case MSF_StringFormatType::Type64: size = (uint32_t)aPrintData.myValue->myValue32; break; // sure hope someone isn't trying 2gb+ width or precision O.o
-					}
-
-					*value = size;
-					valueSet = valueClosed = true;
-					leadingZero = false;
-
-					++aPrintData.myValue;
-					++anInputIndex;
+				case MSF_StringFormatType::Type8: value = aPrintData.myValue->myValue8; break;
+				case MSF_StringFormatType::Type16: value = aPrintData.myValue->myValue16; break;
+				case MSF_StringFormatType::Type32: value = aPrintData.myValue->myValue32; break;
+				case MSF_StringFormatType::Type64: value = (uint32_t)aPrintData.myValue->myValue32; break; // sure hope someone isn't trying 2gb+ width or precision O.o
 				}
+
+				++aPrintData.myValue;
+				++anInputIndex;
+			}
+			else
+			{
+				for (; MSF_IsDigit(character); character = *++anInput)
+					value = value * 10 + (character - '0');
+			}
+
+			if (!i && *anInput == '.')
+			{
+				aPrintData.myFlags |= PRINT_PRECISION;
+				++anInput;
+			}
+			else
 				break;
-			}
-			case '0':
-				if (leadingZero)
-				{
-					leadingZero = false;
-					if (!(aPrintData.myFlags & PRINT_LEFTALIGN))
-					{
-						aPrintData.myFlags |= PRINT_ZERO;
-					}
-					break;
-				}
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':
-			case '8':
-			case '9':
-				if (valueClosed)
-					return MSF_PrintResult(ER_DuplicateWildcard);
-
-				leadingZero = false;
-				valueSet = true;
-				*value = (*value * 10) + (character - '0');
-				break;
-			case 'I': // look for I[(32|64)](d|i|o|u|x|X)
-				{
-					int advance = 0;
-					if ((anInput[0] == '3' && anInput[1] == '2') ||
-						(anInput[0] == '6' && anInput[1] == '4'))
-					{
-						advance = 2;
-					}
-
-					Char const next = anInput[advance];
-					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X')
-					{
-						character = next;
-						anInput += advance + 1;
-					}
-				}
-				goto do_print;
-
-			case 'h': // look for (h|hh)(d|i|o|u|x|X|n) or h(s|c)
-				if (anInput[0] == 'h')
-				{
-					Char const next = anInput[1];
-					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n')
-					{
-						// skip hh
-						character = next;
-						anInput += 2;
-					}
-				}
-				else
-				{
-					Char const next = anInput[0];
-					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n' ||
-						next == 's' || next == 'c')
-					{
-						// skip h
-						character = next;
-						anInput += 1;
-					}
-				}
-				goto do_print;
-
-			case 'l': // look for (l|ll)(d|i|o|u|x|X|n) or l(s|c|f|F|e|E|a|A|g|G)
-				if (anInput[0] == 'l')
-				{
-					Char const next = anInput[1];
-					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n')
-					{
-						// skip ll
-						character = next;
-						anInput += 2;
-					}
-				}
-				else
-				{
-					Char const next = anInput[0];
-					if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n' ||
-						next == 's' || next == 'c' ||
-						next == 'f' || next == 'F' || next == 'e' || next == 'E' || next == 'a' || next == 'A' || next == 'g' || next == 'G')
-					{
-						// skip l
-						character = next;
-						anInput += 1;
-					}
-				}
-				goto do_print;
-
-			case 'j':
-			case 't':
-			case 'z': // look for (j|t|z)(d|i|o|u|x|X)
-			{
-				Char const next = anInput[0];
-				if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X')
-				{
-					// skip l
-					character = next;
-					anInput += 1;
-				}
-			}
-				goto do_print;
-
-			case 'L': // look for L(f|F|e|E|a|A|g|G)
-			{
-				Char const next = anInput[0];
-				if (next == 'f' || next == 'F' || next == 'e' || next == 'E' || next == 'a' || next == 'A' || next == 'g' || next == 'G')
-				{
-					// skip l
-					character = next;
-					anInput += 1;
-				}
-			}
-				goto do_print;
-
-			case 'w': // look for w(s|c)
-			{
-				Char const next = anInput[0];
-				if (next == 's' || next == 'c')
-				{
-					// skip l
-					character = next;
-					anInput += 1;
-				}
-			}
-				goto do_print;
-
-			default:
-				if (!MSF_IsAsciiAlphaNumeric(character))
-				{
-					return MSF_PrintResult(ER_InvalidPrintCharacter, character);
-				}
-				else
-				{
-					do_print:
-
-					aPrintData.myPrintChar = (char)character;
-
-					static_assert(sizeof(aPrintData.myWidth) == 2, "sizeof myWidth changed, update code");
-					MSF_ASSERT(width < UINT16_MAX);
-					aPrintData.myWidth = (uint16_t)width;
-
-					static_assert(sizeof(aPrintData.myPrecision) == 2, "sizeof myPrecision changed, update code");
-					MSF_ASSERT(precision < UINT16_MAX);
-					aPrintData.myPrecision = (uint16_t)precision;
-
-					return ValidateTypeShared<Char>(aPrintData, *aPrintData.myValue);
-				}
-			}
 		}
 
-		return MSF_PrintResult(ER_UnexpectedEnd);
+		// Read print character
+		switch (Char character = *anInput++)
+		{
+		case 'I': // look for I[(32|64)](d|i|o|u|x|X)
+			{
+				int advance = 0;
+				if ((anInput[0] == '3' && anInput[1] == '2') ||
+					(anInput[0] == '6' && anInput[1] == '4'))
+				{
+					advance = 2;
+				}
+
+				Char const next = anInput[advance];
+				if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X')
+				{
+					character = next;
+					anInput += advance + 1;
+				}
+			}
+			goto do_print;
+
+		case 'h': // look for (h|hh)(d|i|o|u|x|X|n) or h(s|c)
+			if (anInput[0] == 'h')
+			{
+				Char const next = anInput[1];
+				if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n')
+				{
+					// skip hh
+					character = next;
+					anInput += 2;
+				}
+			}
+			else
+			{
+				Char const next = anInput[0];
+				if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n' ||
+					next == 's' || next == 'c')
+				{
+					// skip h
+					character = next;
+					anInput += 1;
+				}
+			}
+			goto do_print;
+
+		case 'l': // look for (l|ll)(d|i|o|u|x|X|n) or l(s|c|f|F|e|E|a|A|g|G)
+			if (anInput[0] == 'l')
+			{
+				Char const next = anInput[1];
+				if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n')
+				{
+					// skip ll
+					character = next;
+					anInput += 2;
+				}
+			}
+			else
+			{
+				Char const next = anInput[0];
+				if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X' || next == 'n' ||
+					next == 's' || next == 'c' ||
+					next == 'f' || next == 'F' || next == 'e' || next == 'E' || next == 'a' || next == 'A' || next == 'g' || next == 'G')
+				{
+					// skip l
+					character = next;
+					anInput += 1;
+				}
+			}
+			goto do_print;
+
+		case 'j':
+		case 't':
+		case 'z': // look for (j|t|z)(d|i|o|u|x|X)
+		{
+			Char const next = anInput[0];
+			if (next == 'd' || next == 'i' || next == 'o' || next == 'u' || next == 'x' || next == 'X')
+			{
+				// skip l
+				character = next;
+				anInput += 1;
+			}
+		}
+			goto do_print;
+
+		case 'L': // look for L(f|F|e|E|a|A|g|G)
+		{
+			Char const next = anInput[0];
+			if (next == 'f' || next == 'F' || next == 'e' || next == 'E' || next == 'a' || next == 'A' || next == 'g' || next == 'G')
+			{
+				// skip l
+				character = next;
+				anInput += 1;
+			}
+		}
+			goto do_print;
+
+		case 'w': // look for w(s|c)
+		{
+			Char const next = anInput[0];
+			if (next == 's' || next == 'c')
+			{
+				// skip l
+				character = next;
+				anInput += 1;
+			}
+		}
+			goto do_print;
+
+		default:
+			if (!MSF_IsAsciiAlphaNumeric(character))
+			{
+				return MSF_PrintResult(ER_InvalidPrintCharacter, character);
+			}
+			else
+			{
+				do_print:
+
+				aPrintData.myPrintChar = (char)character;
+
+				static_assert(sizeof(aPrintData.myWidth) == 2, "sizeof myWidth changed, update code");
+				MSF_ASSERT(widthPrecision[0] < UINT16_MAX);
+				aPrintData.myWidth = (uint16_t)widthPrecision[0];
+
+				static_assert(sizeof(aPrintData.myPrecision) == 2, "sizeof myPrecision changed, update code");
+				MSF_ASSERT(widthPrecision[1] < UINT16_MAX);
+				aPrintData.myPrecision = (uint16_t)widthPrecision[1];
+
+				return ValidateTypeShared<Char>(aPrintData, *aPrintData.myValue);
+			}
+		}
 	}
 
 	//-------------------------------------------------------------------------------------------------

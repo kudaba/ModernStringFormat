@@ -60,6 +60,15 @@
 #endif
 
 //-------------------------------------------------------------------------------------------------
+// Passing in nullptr for a string will cause format to print '(null)' the same as most implementations
+// This flag controls whether precision will clip the '(null)' string or omit it entirely.
+// Setting to 1 will omit the string if precision is less than 6.
+//-------------------------------------------------------------------------------------------------
+#if !MSF_STRING_NULL_ALL_OR_NOTHING
+#define MSF_STRING_NULL_ALL_OR_NOTHING 1
+#endif
+
+//-------------------------------------------------------------------------------------------------
 // Override precision to always be size of pointer address
 //-------------------------------------------------------------------------------------------------
 #if !MSF_POINTER_FORCE_PRECISION

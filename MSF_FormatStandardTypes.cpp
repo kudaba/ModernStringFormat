@@ -266,6 +266,17 @@ namespace MSF_StringFormatString
 	{
 		MSF_ASSERT(aValue.myType & ValidTypes);
 
+		if (aValue.myString == nullptr)
+		{
+#if MSF_STRING_NULL_ALL_OR_NOTHING
+			if (!(aData.myFlags & PRINT_PRECISION) || aData.myPrecision > 5)
+				return Helper<Char, char>::Validate(aData, "(null)", 6);
+			return Helper<Char, char>::Validate(aData, "", 0);
+#else
+			return Helper<Char, char>::Validate(aData, "(null)", 6);
+#endif
+		}
+
 		if ((aValue.myUserData & (MSF_StringFormatType::UTF16 | MSF_StringFormatType::UTF32)) == 0)
 			return Helper<Char, char>::Validate(aData, aValue.myString, aLength);
 
@@ -308,6 +319,17 @@ namespace MSF_StringFormatString
 	template <typename Char>
 	size_t PrintShared(Char* aBuffer, Char const* aBufferEnd, MSF_PrintData const& aData)
 	{
+		if (aData.myValue->myString == nullptr)
+		{
+#if MSF_STRING_NULL_ALL_OR_NOTHING
+			if (!(aData.myFlags & PRINT_PRECISION) || aData.myPrecision > 5)
+				return Helper<Char, char>::Print(aBuffer, aBufferEnd, aData, "(null)");
+			return Helper<Char, char>::Print(aBuffer, aBufferEnd, aData, "");
+#else
+			return Helper<Char, char>::Print(aBuffer, aBufferEnd, aData, "(null)");
+#endif
+		}
+
 		if ((aData.myValue->myUserData & (MSF_StringFormatType::UTF16 | MSF_StringFormatType::UTF32)) == 0)
 			return Helper<Char, char>::Print(aBuffer, aBufferEnd, aData, aData.myValue->myString);
 
@@ -332,6 +354,8 @@ namespace MSF_StringFormatString
 
 	size_t CopyLength(MSF_StringFormatType const& aValue)
 	{
+		if (aValue.myString == nullptr)
+			return 0;
 		if (aValue.myUserData & MSF_StringFormatType::UTF32)
 			return (MSF_Strlen(aValue.myUTF32String) + 1) * 4;
 		if (aValue.myUserData & MSF_StringFormatType::UTF16)

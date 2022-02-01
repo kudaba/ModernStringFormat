@@ -248,8 +248,14 @@ namespace MSF_CustomPrint
 	//-------------------------------------------------------------------------------------------------
 	// Initialize standard printf types
 	//-------------------------------------------------------------------------------------------------
+	bool InitializeCustomPrint();
+	bool theCustomPrintInitialized = InitializeCustomPrint();
+
 	bool InitializeCustomPrint()
 	{
+		if (theCustomPrintInitialized)
+			return true;
+
 		{
 			MSF_CustomPrinter printer{
 				MSF_StringFormatChar::ValidateUTF8, MSF_StringFormatChar::ValidateUTF16, MSF_StringFormatChar::ValidateUTF32,
@@ -321,8 +327,6 @@ namespace MSF_CustomPrint
 		return true;
 	}
 
-	bool theCustomPrintInitialized = InitializeCustomPrint();
-
 	//-------------------------------------------------------------------------------------------------
 	// Validate external assumed users are calling the correct types and will crash if invalid
 	//-------------------------------------------------------------------------------------------------
@@ -350,8 +354,14 @@ namespace MSF_CustomPrint
 	{
 		RegisteredChar const& registered = theRegisteredChars[GetCharIndex(aPrintData.myPrintChar)];
 		if (!registered.Printer.ValidateUTF8)
-			return MSF_PrintResult(ER_UnregisteredChar, aPrintData.myPrintChar);
+		{
+			// If called pre-main then we might be be initialized yet, so just do that now!
+			if (!theRegisteredChars[GetCharIndex('c')].Printer.ValidateUTF8)
+				theCustomPrintInitialized = InitializeCustomPrint();
 
+			if (!registered.Printer.ValidateUTF8)
+				return MSF_PrintResult(ER_UnregisteredChar, aPrintData.myPrintChar);
+		}
 		if (!(registered.SupportedTypes & aValue.myType))
 			return MSF_PrintResult(ER_TypeMismatch, aPrintData.myPrintChar);
 
@@ -671,7 +681,7 @@ namespace MSF_CustomPrint
 	{
 		// gather the parts
 		// https://docs.microsoft.com/en-us/dotnet/api/system.string.format?view=netframework-4.8#controlling-formatting
-		// {[index][,alignment][:formatString]} 
+		// {[index][,[-]width][:formatString[precision]]} 
 
 		// Read alignment / width
 		if (*anInput == ',')

@@ -348,49 +348,25 @@ extern MSF_StringFormatWChar const* MSF_CopyStringFormat(MSF_StringFormatWChar c
 #if !defined(MSF_DEFAULT_FMT_SIZE)
 #define MSF_DEFAULT_FMT_SIZE 512
 #endif
+
+template <typename Char, int Size = MSF_DEFAULT_FMT_SIZE>
+struct MSF_StrFmtTemplate
+{
+	template <typename... Args>
+	MSF_StrFmtTemplate(Char const* aString, ARGS args) { MSF_FormatString(MSF_StringFormatContainer<Char, Args...>(aString, args...), myString, Size); }
+
+	operator Char const* () const { return myString; }
+
+	Char myString[Size];
+};
+
+template <int Size = MSF_DEFAULT_FMT_SIZE> using MSF_StrFmtUTF8 = MSF_StrFmtTemplate<char, Size>;
+template <int Size = MSF_DEFAULT_FMT_SIZE> using MSF_StrFmtUTF16 = MSF_StrFmtTemplate<char16_t, Size>;
+template <int Size = MSF_DEFAULT_FMT_SIZE> using MSF_StrFmtUTF32 = MSF_StrFmtTemplate<char32_t, Size>;
+template <int Size = MSF_DEFAULT_FMT_SIZE> using MSF_StrFmtWChar = MSF_StrFmtTemplate<wchar_t, Size>;
+
 #if !defined(MSF_StrFmt)
-#define MSF_StrFmt MSF_StrFmtUTF8<512>
+typedef MSF_StrFmtUTF8<MSF_DEFAULT_FMT_SIZE> MSF_StrFmt;
 #endif
-
-template <int Size = MSF_DEFAULT_FMT_SIZE>
-struct MSF_StrFmtUTF8
-{
-	template <typename... Args>
-	MSF_StrFmtUTF8(char const* aString, ARGS args) { MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), myString, Size); }
-
-	operator char const* () { return myString; }
-
-	char myString[Size];
-};
-template <int Size = MSF_DEFAULT_FMT_SIZE>
-struct MSF_StrFmtUTF16
-{
-	template <typename... Args>
-	MSF_StrFmtUTF16(char16_t const* aString, ARGS args) { MSF_FormatString(MSF_StringFormatContainer<char16_t, Args...>(aString, args...), myString, Size); }
-
-	operator char16_t const* () { return myString; }
-
-	char16_t myString[Size];
-};
-template <int Size = MSF_DEFAULT_FMT_SIZE>
-struct MSF_StrFmtUTF32
-{
-	template <typename... Args>
-	MSF_StrFmtUTF32(char32_t const* aString, ARGS args) { MSF_FormatString(MSF_StringFormatContainer<char32_t, Args...>(aString, args...), myString, Size); }
-
-	operator char32_t const* () { return myString; }
-
-	char32_t myString[Size];
-};
-template <int Size = MSF_DEFAULT_FMT_SIZE>
-struct MSF_StrFmtWChar
-{
-	template <typename... Args>
-	MSF_StrFmtWChar(wchar_t const* aString, ARGS args) { MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), myString, Size); }
-
-	operator wchar_t const* () { return myString; }
-
-	wchar_t myString[Size];
-};
 
 #undef ARGS

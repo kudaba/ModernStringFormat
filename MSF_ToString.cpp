@@ -416,7 +416,7 @@ int MSF_DoubleToStringShared(double aValue, Char* aBuffer, size_t aBufferLength,
                 ++fwidth;
             }
             // round up?
-            if (ffpart >= 0.5)
+            if (ffpart + FLT_EPSILON >= 0.5)
             {
                 bool add = false;
                 if (aPrecision)

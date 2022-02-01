@@ -11,7 +11,7 @@
 static char locStringLeadingCharacter(MSF_PrintData const& aData)
 {
 #if MSF_STRING_ALLOW_LEADING_ZERO
-	return (aData.myFlags & PRINT_ZERO) ? '0' : ' ';
+	return ((aData.myFlags & PRINT_ZERO) && aData.myWidth) ? '0' : ' ';
 #else
 	(void)aData;
 	return ' ';
@@ -122,23 +122,21 @@ namespace MSF_StringFormatChar
 		Char* bufferWrite = aBuffer;
 		CharData const charData = *(CharData const*)&aData.myUserData;
 
-		if (aData.myFlags & PRINT_LEFTALIGN)
-		{
-			MSF_CopyChars(bufferWrite, aBufferEnd, (Char const*)charData.Data.UTF8, charData.Length);
-			bufferWrite += charData.Length;
-		}
-
-		if (aData.myWidth > charData.Length)
+		if (!(aData.myFlags & PRINT_LEFTALIGN) && aData.myWidth > charData.Length)
 		{
 			size_t const splatChars = aData.myWidth - charData.Length;
 			MSF_SplatChars(bufferWrite, aBufferEnd, locStringLeadingCharacter(aData), splatChars);
 			bufferWrite += splatChars;
 		}
 
-		if (!(aData.myFlags & PRINT_LEFTALIGN))
+		MSF_CopyChars(bufferWrite, aBufferEnd, (Char const*)charData.Data.UTF8, charData.Length);
+		bufferWrite += charData.Length;
+
+		if ((aData.myFlags & PRINT_LEFTALIGN) && aData.myWidth > charData.Length)
 		{
-			MSF_CopyChars(bufferWrite, aBufferEnd, (Char const*)charData.Data.UTF8, charData.Length);
-			bufferWrite += charData.Length;
+			size_t const splatChars = aData.myWidth - charData.Length;
+			MSF_SplatChars(bufferWrite, aBufferEnd, ' ', splatChars);
+			bufferWrite += splatChars;
 		}
 
 		return bufferWrite - aBuffer;
@@ -212,7 +210,7 @@ namespace MSF_StringFormatString
 			if (aData.myFlags & PRINT_LEFTALIGN && aData.myWidth > aData.myUserData)
 			{
 				size_t const splatChars = size_t(aData.myWidth - aData.myUserData);
-				MSF_SplatChars(bufferWrite, aBufferEnd, locStringLeadingCharacter(aData), splatChars);
+				MSF_SplatChars(bufferWrite, aBufferEnd, ' ', splatChars);
 				bufferWrite += splatChars;
 			}
 

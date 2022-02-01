@@ -454,7 +454,7 @@ namespace MSF_CustomPrint
 		// more room for custom types
 
 #if MSF_ERROR_PEDANTIC
-#define SET_FLAG(flag) if (aPrintData.myFlags & flag) return MSF_PrintResult(ER_DuplicateFlag, character); aPrintData.myFlags |= flag;
+#define SET_FLAG(flag) { if (aPrintData.myFlags & flag) return MSF_PrintResult(ER_DuplicateFlag, character); aPrintData.myFlags |= flag; }
 #else
 #define SET_FLAG(flag) aPrintData.myFlags |= flag;
 #endif

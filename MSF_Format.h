@@ -37,29 +37,29 @@ public:
 		UTF32		= (1 << 4),
 	};
 
-    explicit MSF_StringFormatType(int8_t const& aData) : myValue32(aData), myType(Type8), myUserData(Signed) {}
-    explicit MSF_StringFormatType(uint8_t const& aData) : myValue32(aData), myType(Type8), myUserData(0) {}
-    explicit MSF_StringFormatType(int16_t const& aData) : myValue32(aData), myType(Type16), myUserData(Signed) {}
-    explicit MSF_StringFormatType(uint16_t const& aData) : myValue32(aData), myType(Type16), myUserData(0) {}
-    explicit MSF_StringFormatType(int32_t const& aData) : myValue32(aData), myType(Type32), myUserData(Signed) {}
-    explicit MSF_StringFormatType(uint32_t const& aData) : myValue32(aData), myType(Type32), myUserData(0) {}
-    explicit MSF_StringFormatType(int64_t const& aData) : myValue64(aData), myType(Type64), myUserData(Signed) {}
-    explicit MSF_StringFormatType(uint64_t const& aData) : myValue64(aData), myType(Type64), myUserData(0) {}
-    explicit MSF_StringFormatType(float const& aData) : myfloat(aData), myType(Typefloat), myUserData(0) {}
-    explicit MSF_StringFormatType(double const& aData) : mydouble(aData), myType(Typedouble), myUserData(0) {}
-	explicit MSF_StringFormatType(long double const& aData) : mydouble((double)aData), myType(Typedouble), myUserData(0) {}
+    explicit MSF_StringFormatType(int8_t aData) : myValue32(aData), myType(Type8), myUserData(Signed) {}
+    explicit MSF_StringFormatType(uint8_t aData) : myValue32(aData), myType(Type8), myUserData(0) {}
+    explicit MSF_StringFormatType(int16_t aData) : myValue32(aData), myType(Type16), myUserData(Signed) {}
+    explicit MSF_StringFormatType(uint16_t aData) : myValue32(aData), myType(Type16), myUserData(0) {}
+    explicit MSF_StringFormatType(int32_t aData) : myValue32(aData), myType(Type32), myUserData(Signed) {}
+    explicit MSF_StringFormatType(uint32_t aData) : myValue32(aData), myType(Type32), myUserData(0) {}
+    explicit MSF_StringFormatType(int64_t aData) : myValue64(aData), myType(Type64), myUserData(Signed) {}
+    explicit MSF_StringFormatType(uint64_t aData) : myValue64(aData), myType(Type64), myUserData(0) {}
+    explicit MSF_StringFormatType(float aData) : myfloat(aData), myType(Typefloat), myUserData(0) {}
+    explicit MSF_StringFormatType(double aData) : mydouble(aData), myType(Typedouble), myUserData(0) {}
+	explicit MSF_StringFormatType(long double aData) : mydouble((double)aData), myType(Typedouble), myUserData(0) {}
 
-	explicit MSF_StringFormatType(char const& aData) : myValue32(aData), myType(Type8), myUserData(Signed | Char) {}
+	explicit MSF_StringFormatType(char aData) : myValue32(aData), myType(Type8), myUserData(Signed | Char) {}
 	explicit MSF_StringFormatType(char const* aData) : myString(aData), myType(TypeString), myUserData(0) {}
 
-	explicit MSF_StringFormatType(char16_t const& aData) : myValue32(aData), myType(Type16), myUserData(Signed | Char) {}
+	explicit MSF_StringFormatType(char16_t aData) : myValue32(aData), myType(Type16), myUserData(Signed | Char) {}
 	explicit MSF_StringFormatType(char16_t const* aData) : myUTF16String(aData), myType(TypeString), myUserData(UTF16) {}
 
-	explicit MSF_StringFormatType(char32_t const& aData) : myValue32(aData), myType(Type32), myUserData(Signed | Char) {}
+	explicit MSF_StringFormatType(char32_t aData) : myValue32(aData), myType(Type32), myUserData(Signed | Char) {}
 	explicit MSF_StringFormatType(char32_t const* aData) : myUTF32String(aData), myType(TypeString), myUserData(UTF32) {}
 
 	// wchar_t might be utf16 or utf32 depending on compiler flags
-	explicit MSF_StringFormatType(wchar_t const& aData) : myValue32(aData), myType(sizeof(wchar_t) == 2 ? Type16 : Type32), myUserData(Signed | Char) {}
+	explicit MSF_StringFormatType(wchar_t aData) : myValue32(aData), myType(sizeof(wchar_t) == 2 ? Type16 : Type32), myUserData(Signed | Char) {}
 	explicit MSF_StringFormatType(wchar_t const* aData) : myUserType((char16_t const* )aData), myType(TypeString), myUserData(sizeof(wchar_t) == 2 ? UTF16 : UTF32) {}
 
 	explicit MSF_StringFormatType(void const* aData) : myUserType(aData), myType(sizeof(void*) * 2), myUserData(Pointer) {}

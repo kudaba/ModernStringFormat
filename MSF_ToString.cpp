@@ -415,8 +415,15 @@ int MSF_DoubleToStringShared(double aValue, Char* aBuffer, size_t aBufferLength,
                 *fw++ = '0' + Char(ifpart);
                 ++fwidth;
             }
+
+#if MSF_FLOAT_EPSILON_AFFECTED_BY_PRECISION
+            double const epsilon = FLT_EPSILON / powprec;
+#else
+            double const epsilon = FLT_EPSILON;
+#endif
+
             // round up?
-            if (ffpart + FLT_EPSILON >= 0.5)
+            if (ffpart + epsilon >= 0.5)
             {
                 bool add = false;
                 if (aPrecision)

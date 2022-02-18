@@ -103,6 +103,14 @@
 #define MSF_POINTER_PRINT_NIL 0
 #endif
 
+//-------------------------------------------------------------------------------------------------
+// If enabled then the epsilon modifier to check for rounding will be further decreased
+// by the precision of the number being printed.
+//-------------------------------------------------------------------------------------------------
+#if !MSF_FLOAT_EPSILON_AFFECTED_BY_PRECISION
+#define MSF_FLOAT_EPSILON_AFFECTED_BY_PRECISION 0
+#endif
+
 #endif // !MSF_FORMAT_LOCAL_PLATFORM
 
 //-------------------------------------------------------------------------------------------------

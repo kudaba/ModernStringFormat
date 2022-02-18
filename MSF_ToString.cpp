@@ -510,11 +510,7 @@ int MSF_DoubleToStringShared(double aValue, Char* aBuffer, size_t aBufferLength,
 				// introduce trailing zeroes up to precision when in prefix mode
 				if (aValue == 0 && (someFlags & PRINT_PREFIX))
                 {
-#if MSF_FLOAT_PREFIX_INCLUDE_WHOLE_NUMBER
                     while (iwidth + fwidth < aPrecision)
-#else
-                    while (fwidth < aPrecision)
-#endif
                     {
                         *(fw++) = '0';
                         ++fwidth;

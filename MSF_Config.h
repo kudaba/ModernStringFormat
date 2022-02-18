@@ -103,16 +103,6 @@
 #define MSF_POINTER_PRINT_NIL 0
 #endif
 
-//-------------------------------------------------------------------------------------------------
-// If enabled then including the prefix flag '#' when printing floats and double will include
-// the whole number when padding to precision.
-//    With Flag: #.5f -> 0.0000
-// Without Flag: #.5f -> 0.00000
-//-------------------------------------------------------------------------------------------------
-#if !MSF_FLOAT_PREFIX_INCLUDE_WHOLE_NUMBER
-#define MSF_FLOAT_PREFIX_INCLUDE_WHOLE_NUMBER 1
-#endif
-
 #endif // !MSF_FORMAT_LOCAL_PLATFORM
 
 //-------------------------------------------------------------------------------------------------

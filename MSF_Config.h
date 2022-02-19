@@ -34,12 +34,20 @@
 
 //-------------------------------------------------------------------------------------------------
 // Formatting options:
-// When MSF_FORMAT_LOCAL_PLATFORM is enabled, then some formatting options are adjusted to adhere
-// to local platforms versions of printf. When disabled then users can override the specific options
-// to have a consistent experience across all platforms.
+// Set MSF_FORMAT_LOCAL_PLATFORM to different values to control which configuration to select
+// MSF_FORMAT_PLATFORM_MANUAL - Will use any options currently set, otherwise each option defaults to whatever arbitrarily thought was best
+// MSF_FORMAT_PLATFORM_AUTO - Adjust config to the current platform (fallback to LINUX if platform is unknown)
+// MSF_FORMAT_PLATFORM_* - Choose this platform
 //-------------------------------------------------------------------------------------------------
+#define MSF_FORMAT_PLATFORM_MANUAL 0
+#define MSF_FORMAT_PLATFORM_AUTO 1
+#define MSF_FORMAT_PLATFORM_ANDROID 10
+#define MSF_FORMAT_PLATFORM_APPLE 20
+#define MSF_FORMAT_PLATFORM_LINUX 30
+#define MSF_FORMAT_PLATFORM_WINDOWS 40
+
 #if !defined(MSF_FORMAT_LOCAL_PLATFORM)
-#define MSF_FORMAT_LOCAL_PLATFORM 1
+#define MSF_FORMAT_LOCAL_PLATFORM MSF_FORMAT_PLATFORM_AUTO
 #endif
 
 #if !MSF_FORMAT_LOCAL_PLATFORM

@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
+#include "MSF_Config.h"
 
 //-------------------------------------------------------------------------------------------------
 // Helper for reading code points from UTF strings
@@ -25,6 +24,7 @@ struct MSF_CharactersWritten
 // Read one character from a UTF8 or UTF16 string
 //-------------------------------------------------------------------------------------------------
 MSF_CodeRead MSF_ReadCodePoint(char const* aString);
+MSF_CodeRead MSF_ReadCodePoint(char8_t const* aString);
 MSF_CodeRead MSF_ReadCodePoint(char16_t const* aString);
 MSF_CodeRead MSF_ReadCodePoint(char32_t const* aString);
 MSF_CodeRead MSF_ReadCodePoint(wchar_t const* aString);
@@ -32,7 +32,8 @@ MSF_CodeRead MSF_ReadCodePoint(wchar_t const* aString);
 //-------------------------------------------------------------------------------------------------
 // Write a code point to a UTF8 or UTF16 string
 //-------------------------------------------------------------------------------------------------
-uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char aString[4/sizeof(char)]);
+uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char aString[4 / sizeof(char)]);
+uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char8_t aString[4/sizeof(char)]);
 uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char16_t aString[4 / sizeof(char16_t)]);
 uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char32_t aString[4 / sizeof(char32_t)]);
 uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, wchar_t aString[4 / sizeof(wchar_t)]);
@@ -43,21 +44,31 @@ uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, wchar_t aString[4 / sizeof(wcha
 // You can optinally limit the copy by number of characters as well as number of elements in the buffer
 //-------------------------------------------------------------------------------------------------
 MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char * aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+
 MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 
 MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
+MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit = SIZE_MAX);

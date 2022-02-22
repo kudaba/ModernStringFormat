@@ -92,6 +92,15 @@ template struct MSF_SignedToString<int16_t, uint16_t, char>;
 template struct MSF_SignedToString<int32_t, uint32_t, char>;
 template struct MSF_SignedToString<int64_t, uint64_t, char>;
 
+template struct MSF_UnsignedToString<uint8_t, char8_t>;
+template struct MSF_UnsignedToString<uint16_t, char8_t>;
+template struct MSF_UnsignedToString<uint32_t, char8_t>;
+template struct MSF_UnsignedToString<uint64_t, char8_t>;
+template struct MSF_SignedToString<int8_t, uint8_t, char8_t>;
+template struct MSF_SignedToString<int16_t, uint16_t, char8_t>;
+template struct MSF_SignedToString<int32_t, uint32_t, char8_t>;
+template struct MSF_SignedToString<int64_t, uint64_t, char8_t>;
+
 template struct MSF_UnsignedToString<uint8_t, char16_t>;
 template struct MSF_UnsignedToString<uint16_t, char16_t>;
 template struct MSF_UnsignedToString<uint32_t, char16_t>;
@@ -109,6 +118,15 @@ template struct MSF_SignedToString<int8_t, uint8_t, char32_t>;
 template struct MSF_SignedToString<int16_t, uint16_t, char32_t>;
 template struct MSF_SignedToString<int32_t, uint32_t, char32_t>;
 template struct MSF_SignedToString<int64_t, uint64_t, char32_t>;
+
+template struct MSF_UnsignedToString<uint8_t, wchar_t>;
+template struct MSF_UnsignedToString<uint16_t, wchar_t>;
+template struct MSF_UnsignedToString<uint32_t, wchar_t>;
+template struct MSF_UnsignedToString<uint64_t, wchar_t>;
+template struct MSF_SignedToString<int8_t, uint8_t, wchar_t>;
+template struct MSF_SignedToString<int16_t, uint16_t, wchar_t>;
+template struct MSF_SignedToString<int32_t, uint32_t, wchar_t>;
+template struct MSF_SignedToString<int64_t, uint64_t, wchar_t>;
 
 //-------------------------------------------------------------------------------------------------
 // Implementation of double to string.  Needs to be cleaned up a bit.
@@ -594,11 +612,19 @@ int MSF_DoubleToString(double aValue, char* anOutput, size_t aLength, char aForm
 {
     return MSF_DoubleToStringShared(aValue, anOutput, aLength, aFormat, aWidth, aPrecision, someFlags);
 }
+int MSF_DoubleToString(double aValue, char8_t* anOutput, size_t aLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
+{
+    return MSF_DoubleToStringShared(aValue, anOutput, aLength, aFormat, aWidth, aPrecision, someFlags);
+}
 int MSF_DoubleToString(double aValue, char16_t* anOutput, size_t aLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
 {
     return MSF_DoubleToStringShared(aValue, anOutput, aLength, aFormat, aWidth, aPrecision, someFlags);
 }
 int MSF_DoubleToString(double aValue, char32_t* anOutput, size_t aLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
+{
+    return MSF_DoubleToStringShared(aValue, anOutput, aLength, aFormat, aWidth, aPrecision, someFlags);
+}
+int MSF_DoubleToString(double aValue, wchar_t* anOutput, size_t aLength, char aFormat, uint32_t aWidth, uint32_t aPrecision, uint32_t someFlags)
 {
     return MSF_DoubleToStringShared(aValue, anOutput, aLength, aFormat, aWidth, aPrecision, someFlags);
 }

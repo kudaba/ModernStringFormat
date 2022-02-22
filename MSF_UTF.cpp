@@ -2,8 +2,6 @@
 #include "MSF_Assert.h"
 #include "MSF_Utilities.h"
 
-#define MSF_WCHAR_IS_16 WCHAR_MAX == UINT16_MAX
-
 //-------------------------------------------------------------------------------------------------
 // The leader bits of the the first character tells you how many bytes to use.
 // 0b0xxxxxxx - ascii character, 1 byte
@@ -66,6 +64,11 @@ MSF_CodeRead MSF_ReadCodePoint(char const* aString)
 	return { code, 4 };
 }
 //-------------------------------------------------------------------------------------------------
+MSF_CodeRead MSF_ReadCodePoint(char8_t const* aString)
+{
+	return MSF_ReadCodePoint((char const*)aString);
+}
+//-------------------------------------------------------------------------------------------------
 // Values in the range 0xD800-0xDfff are reserved and used to identify when a unicode character is split
 // into two UTF16 segments.
 // 
@@ -102,15 +105,11 @@ MSF_CodeRead MSF_ReadCodePoint(char32_t const* aString)
 //-------------------------------------------------------------------------------------------------
 MSF_CodeRead MSF_ReadCodePoint(wchar_t const* aString)
 {
-#if MSF_WCHAR_IS_16
-	return MSF_ReadCodePoint((char16_t const*)aString);
-#else
-	return MSF_CodeRead{ (uint32_t)*aString, 1 };
-#endif
+	return MSF_ReadCodePoint((MSF_WChar const*)aString);
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char aStringOut[4])
+inline uint32_t MSF_WriteCodePointInternal(uint32_t aCodePoint, char* aStringOut)
 {
 	if (aCodePoint <= 0x7f)
 	{
@@ -140,7 +139,7 @@ uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char aStringOut[4])
 	return 4;
 }
 //-------------------------------------------------------------------------------------------------
-uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char16_t aStringOut[2])
+inline uint32_t MSF_WriteCodePointInternal(uint32_t aCodePoint, char16_t* aStringOut)
 {
 	if (aCodePoint <= 0xffff)
 	{
@@ -156,31 +155,36 @@ uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char16_t aStringOut[2])
 	return 2;
 }
 //-------------------------------------------------------------------------------------------------
-uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char32_t aStringOut[1])
+inline uint32_t MSF_WriteCodePointInternal(uint32_t aCodePoint, char32_t* aStringOut)
 {
 	*aStringOut = aCodePoint;
 	return 1;
 }
 //-------------------------------------------------------------------------------------------------
-uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, wchar_t aStringOut[2])
+//-------------------------------------------------------------------------------------------------
+uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char aStringOut[4 / sizeof(char)])
 {
-#if MSF_WCHAR_IS_16
-	if (aCodePoint <= 0xffff)
-	{
-		MSF_ASSERT(aCodePoint < 0xd800 || aCodePoint >= 0xE000);
-		aStringOut[0] = (char16_t)aCodePoint;
-		return 1;
+	return MSF_WriteCodePointInternal(aCodePoint, aStringOut);
 }
-
-	aCodePoint -= 0x10000;
-
-	aStringOut[0] = char16_t(0xD800 | (aCodePoint >> 10));
-	aStringOut[1] = char16_t(0xDC00 | (aCodePoint & 0b1111111111));
-	return 2;
-#else
-	*aStringOut = aCodePoint;
-	return 1;
-#endif
+//-------------------------------------------------------------------------------------------------
+uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char8_t aStringOut[4 / sizeof(char8_t)])
+{
+	return MSF_WriteCodePointInternal(aCodePoint, (char*)aStringOut);
+}
+//-------------------------------------------------------------------------------------------------
+uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char16_t aStringOut[4 / sizeof(char16_t)])
+{
+	return MSF_WriteCodePointInternal(aCodePoint, aStringOut);
+}
+//-------------------------------------------------------------------------------------------------
+uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, char32_t aStringOut[4 / sizeof(char32_t)])
+{
+	return MSF_WriteCodePointInternal(aCodePoint, aStringOut);
+}
+//-------------------------------------------------------------------------------------------------
+uint32_t MSF_WriteCodePoint(uint32_t aCodePoint, wchar_t aStringOut[4 / sizeof(wchar_t)])
+{
+	return MSF_WriteCodePointInternal(aCodePoint, (MSF_WChar*)aStringOut);
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -236,21 +240,31 @@ MSF_CharactersWritten MSF_UTFCopyShared(CharTo* aStringOut, size_t aBufferLength
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+MSF_CharactersWritten MSF_UTFCopy(char8_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+
 MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char16_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 
 MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(char32_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
+MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char8_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char16_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, char32_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }
 MSF_CharactersWritten MSF_UTFCopy(wchar_t* aStringOut, size_t aBufferLength, wchar_t const* aStringIn, size_t aCharacterLimit) { return MSF_UTFCopyShared(aStringOut, aBufferLength, aStringIn, aCharacterLimit); }

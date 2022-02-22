@@ -12,6 +12,7 @@
 #endif
 
 template class MSF_StringFormatTemplate<char>;
+template class MSF_StringFormatTemplate<char8_t>;
 template class MSF_StringFormatTemplate<char16_t>;
 template class MSF_StringFormatTemplate<char32_t>;
 template class MSF_StringFormatTemplate<wchar_t>;
@@ -1055,6 +1056,17 @@ intptr_t MSF_FormatString(MSF_StringFormat const& aStringFormat, char* aBuffer, 
 	return MSF_FormatStringShared(aStringFormat, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
 }
 //-------------------------------------------------------------------------------------------------
+intptr_t MSF_FormatString(MSF_StringFormatUTF8 const& aStringFormat, char8_t* aBuffer, size_t aBufferLength, size_t anOffset, char8_t* (*aReallocFunction)(char8_t*, size_t, void*), void* aUserData)
+{
+	return MSF_FormatStringShared(
+		*(MSF_StringFormatTemplate<char> const*) & aStringFormat,
+		(char*)aBuffer,
+		aBufferLength,
+		anOffset,
+		(char* (*)(char*, size_t, void*))aReallocFunction,
+		aUserData);
+}
+//-------------------------------------------------------------------------------------------------
 intptr_t MSF_FormatString(MSF_StringFormatUTF16 const& aStringFormat, char16_t* aBuffer, size_t aBufferLength, size_t anOffset, char16_t* (*aReallocFunction)(char16_t*, size_t, void*), void* aUserData)
 {
 	return MSF_FormatStringShared(aStringFormat, aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
@@ -1067,23 +1079,13 @@ intptr_t MSF_FormatString(MSF_StringFormatUTF32 const& aStringFormat, char32_t* 
 //-------------------------------------------------------------------------------------------------
 intptr_t MSF_FormatString(MSF_StringFormatWChar const& aStringFormat, wchar_t* aBuffer, size_t aBufferLength, size_t anOffset, wchar_t* (*aReallocFunction)(wchar_t*, size_t, void*), void* aUserData)
 {
-#if WCHAR_MAX == UINT16_MAX
 	return MSF_FormatStringShared(
-		*(MSF_StringFormatUTF16 const*)&aStringFormat,
-		(char16_t*)aBuffer,
+		*(MSF_StringFormatTemplate<MSF_WChar> const*)&aStringFormat,
+		(MSF_WChar*)aBuffer,
 		aBufferLength,
 		anOffset,
-		(char16_t* (*)(char16_t*, size_t, void*))aReallocFunction,
+		(MSF_WChar* (*)(MSF_WChar*, size_t, void*))aReallocFunction,
 		aUserData);
-#else
-	return MSF_FormatStringShared(
-		*(MSF_StringFormatUTF32 const*)&aStringFormat,
-		(char32_t*)aBuffer,
-		aBufferLength,
-		anOffset,
-		(char32_t* (*)(char32_t*, size_t, void*))aReallocFunction,
-		aUserData);
-#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1161,6 +1163,11 @@ MSF_StringFormat const* MSF_CopyStringFormat(MSF_StringFormat const& aStringForm
 	return MSF_StringFormatCopier<char>::Copy(aStringFormat, anAlloc, anIncludeFormatString);
 }
 //-------------------------------------------------------------------------------------------------
+MSF_StringFormatUTF8 const* MSF_CopyStringFormat(MSF_StringFormatUTF8 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<char8_t>::Copy(aStringFormat, anAlloc, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
 MSF_StringFormatUTF16 const* MSF_CopyStringFormat(MSF_StringFormatUTF16 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString)
 {
 	return MSF_StringFormatCopier<char16_t>::Copy(aStringFormat, anAlloc, anIncludeFormatString);
@@ -1179,6 +1186,11 @@ MSF_StringFormatWChar const* MSF_CopyStringFormat(MSF_StringFormatWChar const& a
 MSF_StringFormat const* MSF_CopyStringFormat(MSF_StringFormat const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString)
 {
 	return MSF_StringFormatCopier<char>::Copy(aStringFormat, [&](size_t aSize) { return anAlloc(aSize, aUserData); }, anIncludeFormatString);
+}
+//-------------------------------------------------------------------------------------------------
+MSF_StringFormatUTF8 const* MSF_CopyStringFormat(MSF_StringFormatUTF8 const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString)
+{
+	return MSF_StringFormatCopier<char8_t>::Copy(aStringFormat, [&](size_t aSize) { return anAlloc(aSize, aUserData); }, anIncludeFormatString);
 }
 //-------------------------------------------------------------------------------------------------
 MSF_StringFormatUTF16 const* MSF_CopyStringFormat(MSF_StringFormatUTF16 const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString)

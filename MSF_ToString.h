@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
+#include "MSF_Config.h"
 
 //-------------------------------------------------------------------------------------------------
 // The returned value is the start of the string content, not the buffer. This is an optimization
@@ -45,6 +44,15 @@ extern template struct MSF_SignedToString<int16_t, uint16_t, char>;
 extern template struct MSF_SignedToString<int32_t, uint32_t, char>;
 extern template struct MSF_SignedToString<int64_t, uint64_t, char>;
 
+extern template struct MSF_UnsignedToString<uint8_t, char8_t>;
+extern template struct MSF_UnsignedToString<uint16_t, char8_t>;
+extern template struct MSF_UnsignedToString<uint32_t, char8_t>;
+extern template struct MSF_UnsignedToString<uint64_t, char8_t>;
+extern template struct MSF_SignedToString<int8_t, uint8_t, char8_t>;
+extern template struct MSF_SignedToString<int16_t, uint16_t, char8_t>;
+extern template struct MSF_SignedToString<int32_t, uint32_t, char8_t>;
+extern template struct MSF_SignedToString<int64_t, uint64_t, char8_t>;
+
 extern template struct MSF_UnsignedToString<uint8_t, char16_t>;
 extern template struct MSF_UnsignedToString<uint16_t, char16_t>;
 extern template struct MSF_UnsignedToString<uint32_t, char16_t>;
@@ -62,6 +70,15 @@ extern template struct MSF_SignedToString<int8_t, uint8_t, char32_t>;
 extern template struct MSF_SignedToString<int16_t, uint16_t, char32_t>;
 extern template struct MSF_SignedToString<int32_t, uint32_t, char32_t>;
 extern template struct MSF_SignedToString<int64_t, uint64_t, char32_t>;
+
+extern template struct MSF_UnsignedToString<uint8_t, wchar_t>;
+extern template struct MSF_UnsignedToString<uint16_t, wchar_t>;
+extern template struct MSF_UnsignedToString<uint32_t, wchar_t>;
+extern template struct MSF_UnsignedToString<uint64_t, wchar_t>;
+extern template struct MSF_SignedToString<int8_t, uint8_t, wchar_t>;
+extern template struct MSF_SignedToString<int16_t, uint16_t, wchar_t>;
+extern template struct MSF_SignedToString<int32_t, uint32_t, wchar_t>;
+extern template struct MSF_SignedToString<int64_t, uint64_t, wchar_t>;
 
 //-------------------------------------------------------------------------------------------------
 // Explicitly implementing supported types only to help reduce compiler errors when using incorrect types
@@ -94,23 +111,12 @@ inline MSF_SignedToString<int64_t, uint64_t> MSF_IntegerToString(int64_t aValue,
 // aFlags - See MSF_PrintFlags.  These are equivalent to the printf flags "-+ 0#"
 //-------------------------------------------------------------------------------------------------
 int MSF_DoubleToString(double aValue, char* anOutput, size_t aLength, char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0);
+int MSF_DoubleToString(double aValue, char8_t* anOutput, size_t aLength, char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0);
 int MSF_DoubleToString(double aValue, char16_t* anOutput, size_t aLength, char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0);
 int MSF_DoubleToString(double aValue, char32_t* anOutput, size_t aLength, char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0);
 
-template<uint32_t Size>
-int MSF_DoubleToString(double aValue, char(&anOutput)[Size], char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0)
-{
-	return MSF_DoubleToString(aValue, anOutput, Size, aFormat, aWidth, aPrecision, someFlags);
-}
-
-template<uint32_t Size>
-int MSF_DoubleToString(double aValue, char16_t(&anOutput)[Size], char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0)
-{
-	return MSF_DoubleToString(aValue, anOutput, Size, aFormat, aWidth, aPrecision, someFlags);
-}
-
-template<uint32_t Size>
-int MSF_DoubleToString(double aValue, char32_t(&anOutput)[Size], char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0)
+template<typename Char, uint32_t Size>
+int MSF_DoubleToString(double aValue, Char(&anOutput)[Size], char aFormat = 'f', uint32_t aWidth = 0, uint32_t aPrecision = 6, uint32_t someFlags = 0)
 {
 	return MSF_DoubleToString(aValue, anOutput, Size, aFormat, aWidth, aPrecision, someFlags);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 //-------------------------------------------------------------------------------------------------
 // Global configuration options. These must be overridden at the project level to make sure
@@ -13,6 +14,13 @@
 //-------------------------------------------------------------------------------------------------
 #if !defined(MSF_MAX_ARGUMENTS)
 #define MSF_MAX_ARGUMENTS 32
+#endif
+
+//-------------------------------------------------------------------------------------------------
+// Control the default parameter for StrFmt helper classes
+//-------------------------------------------------------------------------------------------------
+#if !defined(MSF_DEFAULT_FMT_SIZE)
+#define MSF_DEFAULT_FMT_SIZE 512
 #endif
 
 //-------------------------------------------------------------------------------------------------
@@ -131,3 +139,21 @@
 #define MSF_ASSERTS_ENABLED 1
 #endif
 #endif // !defined(MSF_ASSERTS_ENABLED)
+
+//-------------------------------------------------------------------------------------------------
+// c++20 introduces char8_t, we define it for pre-c++20 to keep code easy to read
+//-------------------------------------------------------------------------------------------------
+#if !defined(__cpp_char8_t)
+typedef unsigned char char8_t;
+#endif
+
+//-------------------------------------------------------------------------------------------------
+// wchar_t is utf16 or utf32 depending on platform and compiler flags
+//-------------------------------------------------------------------------------------------------
+#if WCHAR_MAX == UINT16_MAX
+#define MSF_WCHAR_IS_16 1
+typedef char16_t MSF_WChar;
+#else
+#define MSF_WCHAR_IS_16 0
+typedef char32_t MSF_WChar;
+#endif

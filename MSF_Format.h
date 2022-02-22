@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
+#include "MSF_Config.h"
 
 //-------------------------------------------------------------------------------------------------
 // Format type is used to identify incoming data and hold a pointer or reference
@@ -30,9 +29,9 @@ public:
 
 	enum Flags
 	{
-		Signed		= (1 << 0),
-		Char		= (1 << 1),
-		Pointer		= (1 << 2),
+		Signed		= (1 << 0), // Not used internally, maybe useful by user types?
+		Char		= (1 << 1), // Used do deduce commond types
+		Pointer		= (1 << 2), // Used do deduce commond types
 		UTF16		= (1 << 3),
 		UTF32		= (1 << 4),
 	};
@@ -52,6 +51,11 @@ public:
 	explicit MSF_StringFormatType(char aData) : myValue32(aData), myType(Type8), myUserData(Signed | Char) {}
 	explicit MSF_StringFormatType(char const* aData) : myString(aData), myType(TypeString), myUserData(0) {}
 
+#if defined(__cpp_char8_t)
+	explicit MSF_StringFormatType(char8_t aData) : myValue32(aData), myType(Type16), myUserData(Signed | Char) {}
+	explicit MSF_StringFormatType(char8_t const* aData) : myUserType(aData), myType(TypeString), myUserData(0) {}
+#endif
+
 	explicit MSF_StringFormatType(char16_t aData) : myValue32(aData), myType(Type16), myUserData(Signed | Char) {}
 	explicit MSF_StringFormatType(char16_t const* aData) : myUTF16String(aData), myType(TypeString), myUserData(UTF16) {}
 
@@ -59,8 +63,8 @@ public:
 	explicit MSF_StringFormatType(char32_t const* aData) : myUTF32String(aData), myType(TypeString), myUserData(UTF32) {}
 
 	// wchar_t might be utf16 or utf32 depending on compiler flags
-	explicit MSF_StringFormatType(wchar_t aData) : myValue32(aData), myType(sizeof(wchar_t) == 2 ? Type16 : Type32), myUserData(Signed | Char) {}
-	explicit MSF_StringFormatType(wchar_t const* aData) : myUserType((char16_t const* )aData), myType(TypeString), myUserData(sizeof(wchar_t) == 2 ? UTF16 : UTF32) {}
+	explicit MSF_StringFormatType(wchar_t aData) : myValue32(aData), myType(MSF_WCHAR_IS_16 ? Type16 : Type32), myUserData(Signed | Char) {}
+	explicit MSF_StringFormatType(wchar_t const* aData) : myUserType(aData), myType(TypeString), myUserData(MSF_WCHAR_IS_16 ? UTF16 : UTF32) {}
 
 	explicit MSF_StringFormatType(void const* aData) : myUserType(aData), myType(sizeof(void*) * 2), myUserData(Pointer) {}
 
@@ -226,11 +230,13 @@ protected:
 };
 
 extern template class MSF_StringFormatTemplate<char>;
+extern template class MSF_StringFormatTemplate<char8_t>;
 extern template class MSF_StringFormatTemplate<char16_t>;
 extern template class MSF_StringFormatTemplate<char32_t>;
 extern template class MSF_StringFormatTemplate<wchar_t>;
 
 typedef MSF_StringFormatTemplate<char> MSF_StringFormat;
+typedef MSF_StringFormatTemplate<char8_t> MSF_StringFormatUTF8;
 typedef MSF_StringFormatTemplate<char16_t> MSF_StringFormatUTF16;
 typedef MSF_StringFormatTemplate<char32_t> MSF_StringFormatUTF32;
 typedef MSF_StringFormatTemplate<wchar_t> MSF_StringFormatWChar;
@@ -266,6 +272,7 @@ public:
 // These do not use templates for the char type since we only support char and char16_t
 //-------------------------------------------------------------------------------------------------
 extern intptr_t MSF_FormatString(MSF_StringFormat const& aStringFormat, char* aBuffer, size_t aBufferLength, size_t anOffset = 0, char* (*aReallocFunction)(char*, size_t, void*) = nullptr, void* aUserData = nullptr);
+extern intptr_t MSF_FormatString(MSF_StringFormatUTF8 const& aStringFormat, char8_t* aBuffer, size_t aBufferLength, size_t anOffset = 0, char8_t* (*aReallocFunction)(char8_t*, size_t, void*) = nullptr, void* aUserData = nullptr);
 extern intptr_t MSF_FormatString(MSF_StringFormatUTF16 const& aStringFormat, char16_t* aBuffer, size_t aBufferLength, size_t anOffset = 0, char16_t* (*aReallocFunction)(char16_t*, size_t, void*) = nullptr, void* aUserData = nullptr);
 extern intptr_t MSF_FormatString(MSF_StringFormatUTF32 const& aStringFormat, char32_t* aBuffer, size_t aBufferLength, size_t anOffset = 0, char32_t* (*aReallocFunction)(char32_t*, size_t, void*) = nullptr, void* aUserData = nullptr);
 extern intptr_t MSF_FormatString(MSF_StringFormatWChar const& aStringFormat, wchar_t* aBuffer, size_t aBufferLength, size_t anOffset = 0, wchar_t* (*aReallocFunction)(wchar_t*, size_t, void*) = nullptr, void* aUserData = nullptr);
@@ -279,6 +286,8 @@ extern intptr_t MSF_FormatString(MSF_StringFormatWChar const& aStringFormat, wch
 //-------------------------------------------------------------------------------------------------
 template<typename ...Args>
 MSF_StringFormatContainer<char, Args...> MSF_MakeStringFormat(char const* aString, ARGS args) { return MSF_StringFormatContainer<char, Args...>(aString, args...); }
+template<typename ...Args>
+MSF_StringFormatContainer<char, Args...> MSF_MakeStringFormat(char8_t const* aString, ARGS args) { return MSF_StringFormatContainer<char8_t, Args...>(aString, args...); }
 template<typename ...Args>
 MSF_StringFormatContainer<char16_t, Args...> MSF_MakeStringFormat(char16_t const* aString, ARGS args) { return MSF_StringFormatContainer<char16_t, Args...>(aString, args...); }
 template<typename ...Args>
@@ -295,6 +304,13 @@ template<typename ...Args>
 intptr_t MSF_Format(char* aBuffer, size_t aSize, char const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize); }
 template<typename ...Args>
 intptr_t MSF_Format(char* aBuffer, int aSize, char const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize); }
+//-------------------------------------------------------------------------------------------------
+template<uint32_t Size, typename ...Args>
+intptr_t MSF_Format(char8_t(&aBuffer)[Size], char8_t const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char8_t, Args...>(aString, args...), aBuffer, Size); }
+template<typename ...Args>
+intptr_t MSF_Format(char8_t* aBuffer, size_t aSize, char8_t const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char8_t, Args...>(aString, args...), aBuffer, aSize); }
+template<typename ...Args>
+intptr_t MSF_Format(char8_t* aBuffer, int aSize, char8_t const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char8_t, Args...>(aString, args...), aBuffer, aSize); }
 //-------------------------------------------------------------------------------------------------
 template<uint32_t Size, typename ...Args>
 intptr_t MSF_Format(char16_t(&aBuffer)[Size], char16_t const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char16_t, Args...>(aString, args...), aBuffer, Size); }
@@ -323,6 +339,8 @@ intptr_t MSF_Format(wchar_t* aBuffer, int aSize, wchar_t const* aString, ARGS ar
 template<typename ...Args>
 intptr_t MSF_Format(char* aBuffer, intptr_t aSize, char const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize); }
 template<typename ...Args>
+intptr_t MSF_Format(char8_t* aBuffer, intptr_t aSize, char8_t const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char8_t, Args...>(aString, args...), aBuffer, aSize); }
+template<typename ...Args>
 intptr_t MSF_Format(char16_t* aBuffer, intptr_t aSize, char16_t const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char16_t, Args...>(aString, args...), aBuffer, aSize); }
 template<typename ...Args>
 intptr_t MSF_Format(char32_t* aBuffer, intptr_t aSize, char32_t const* aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char32_t, Args...>(aString, args...), aBuffer, aSize); }
@@ -334,21 +352,21 @@ intptr_t MSF_Format(wchar_t* aBuffer, intptr_t aSize, wchar_t const* aString, AR
 // Make a backup copy of string format structure. This will request an allocation to hold all relevant data.
 //-------------------------------------------------------------------------------------------------
 extern MSF_StringFormat const* MSF_CopyStringFormat(MSF_StringFormat const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
+extern MSF_StringFormatUTF8 const* MSF_CopyStringFormat(MSF_StringFormatUTF8 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
 extern MSF_StringFormatUTF16 const* MSF_CopyStringFormat(MSF_StringFormatUTF16 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
 extern MSF_StringFormatUTF32 const* MSF_CopyStringFormat(MSF_StringFormatUTF32 const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
 extern MSF_StringFormatWChar const* MSF_CopyStringFormat(MSF_StringFormatWChar const& aStringFormat, void* (*anAlloc)(size_t), bool anIncludeFormatString = true);
 
 extern MSF_StringFormat const* MSF_CopyStringFormat(MSF_StringFormat const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString = true);
+extern MSF_StringFormatUTF8 const* MSF_CopyStringFormat(MSF_StringFormatUTF8 const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString = true);
 extern MSF_StringFormatUTF16 const* MSF_CopyStringFormat(MSF_StringFormatUTF16 const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString = true);
 extern MSF_StringFormatUTF32 const* MSF_CopyStringFormat(MSF_StringFormatUTF32 const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString = true);
 extern MSF_StringFormatWChar const* MSF_CopyStringFormat(MSF_StringFormatWChar const& aStringFormat, void* (*anAlloc)(size_t, void*), void* aUserData, bool anIncludeFormatString = true);
 
 //-------------------------------------------------------------------------------------------------
+// Very simple helper for declaring space and format at the same time
+// Usage: SomeFunction(MSF_StrFmt("Print Something {}", 123));
 //-------------------------------------------------------------------------------------------------
-#if !defined(MSF_DEFAULT_FMT_SIZE)
-#define MSF_DEFAULT_FMT_SIZE 512
-#endif
-
 template <typename Char, int Size = MSF_DEFAULT_FMT_SIZE>
 struct MSF_StrFmtTemplate
 {
@@ -360,13 +378,18 @@ struct MSF_StrFmtTemplate
 	Char myString[Size];
 };
 
-template <int Size = MSF_DEFAULT_FMT_SIZE> using MSF_StrFmtUTF8 = MSF_StrFmtTemplate<char, Size>;
-template <int Size = MSF_DEFAULT_FMT_SIZE> using MSF_StrFmtUTF16 = MSF_StrFmtTemplate<char16_t, Size>;
-template <int Size = MSF_DEFAULT_FMT_SIZE> using MSF_StrFmtUTF32 = MSF_StrFmtTemplate<char32_t, Size>;
-template <int Size = MSF_DEFAULT_FMT_SIZE> using MSF_StrFmtWChar = MSF_StrFmtTemplate<wchar_t, Size>;
+// Basic versions ONLY support default size so they can be used more simply in c++11
+using MSF_StrFmt = MSF_StrFmtTemplate<char>;
+using MSF_StrFmtUTF8 = MSF_StrFmtTemplate<char8_t>;
+using MSF_StrFmtUTF16 = MSF_StrFmtTemplate<char16_t>;
+using MSF_StrFmtUTF32 = MSF_StrFmtTemplate<char32_t>;
+using MSF_StrFmtWChar = MSF_StrFmtTemplate<wchar_t>;
 
-#if !defined(MSF_StrFmt)
-typedef MSF_StrFmtUTF8<MSF_DEFAULT_FMT_SIZE> MSF_StrFmt;
-#endif
+// N versions can be used to customize the size at the callsite
+template <int Size> using MSF_StrFmtN = MSF_StrFmtTemplate<char, Size>;
+template <int Size> using MSF_StrFmtUTF8N = MSF_StrFmtTemplate<char8_t, Size>;
+template <int Size> using MSF_StrFmtUTF16N = MSF_StrFmtTemplate<char16_t, Size>;
+template <int Size> using MSF_StrFmtUTF32N = MSF_StrFmtTemplate<char32_t, Size>;
+template <int Size> using MSF_StrFmtWCharN = MSF_StrFmtTemplate<wchar_t, Size>;
 
 #undef ARGS

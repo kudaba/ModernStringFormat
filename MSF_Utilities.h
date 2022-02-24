@@ -11,11 +11,11 @@
 // print characters so it doesn't not need to be UTF8 compatible.
 // Note: Casting to unsigned so I can do sub+cmp instead of cmp+cmp
 //-------------------------------------------------------------------------------------------------
-constexpr bool MSF_IsAsciiAlphaNumeric(char aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
-constexpr bool MSF_IsAsciiAlphaNumeric(char8_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
-constexpr bool MSF_IsAsciiAlphaNumeric(char16_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
-constexpr bool MSF_IsAsciiAlphaNumeric(char32_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
-constexpr bool MSF_IsAsciiAlphaNumeric(wchar_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
+constexpr bool MSF_IsAsciiAlpha(char aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
+constexpr bool MSF_IsAsciiAlpha(char8_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
+constexpr bool MSF_IsAsciiAlpha(char16_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
+constexpr bool MSF_IsAsciiAlpha(char32_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
+constexpr bool MSF_IsAsciiAlpha(wchar_t aCharacter) { return (uint32_t(aCharacter - 'A') < 26) || (uint32_t(aCharacter - 'a') < 26); }
 
 //-------------------------------------------------------------------------------------------------
 // Test if a character is a digit.

@@ -121,7 +121,7 @@ namespace MSF_CustomPrint
 	// helpers to decode character to a 0-52 index
 	int GetCharIndex(char aChar)
 	{
-		MSF_ASSERT(MSF_IsAsciiAlphaNumeric(aChar), "Invalid print character '%c'. Must be a-z or A-Z.", aChar);
+		MSF_ASSERT(MSF_IsAsciiAlpha(aChar), "Invalid print character '%c'. Must be a-z or A-Z.", aChar);
 		int offset = aChar < 'a' ? 'A' - 26 : 'a';
 		return aChar - offset;
 	}
@@ -651,7 +651,7 @@ namespace MSF_CustomPrint
 			goto do_print;
 
 		default:
-			if (!MSF_IsAsciiAlphaNumeric(character))
+			if (!MSF_IsAsciiAlpha(character))
 			{
 				return MSF_PrintResult(ER_InvalidPrintCharacter, character);
 			}
@@ -710,7 +710,7 @@ namespace MSF_CustomPrint
 		if (*anInput == ':')
 		{
 			++anInput;
-			if (!MSF_IsAsciiAlphaNumeric(*anInput))
+			if (!MSF_IsAsciiAlpha(*anInput))
 				return MSF_PrintResult(ER_InvalidPrintCharacter, *anInput, 0);
 
 			aPrintData.myPrintChar = (char)*(anInput++);

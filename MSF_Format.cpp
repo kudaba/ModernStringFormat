@@ -23,21 +23,16 @@ template class MSF_StringFormatTemplate<wchar_t>;
 enum MSF_PrintResultType
 {
 	ER_NotEnoughSpace,
-	ER_AllocationFailed,
 	ER_TooManyInputs,
-	ER_TooManyPrints,
 	ER_InconsistentPrintType,
-	ER_UnexpectedEnd,
 	ER_DuplicateFlag,
 	ER_InvalidPrintCharacter,
 	ER_TypeMismatch,
 	ER_UnregisteredChar,
 	ER_WildcardType,
-	ER_PrecisionWithoutValue,
 
 	// csharp errors
 	ER_UnexpectedBrace,
-	ER_ExpectedIndex,
 	ER_IndexOutOfRange,
 	ER_ExpectedWidth,
 	ER_ExpectedClosingBrace,
@@ -49,20 +44,15 @@ enum MSF_PrintResultType
 static char const* thePrintErrors[] =
 {
 	"ER_NotEnoughSpace: {2} chars was not enough space",
-	"ER_AllocationFailed: Failed to allocation additional memory for {2} chars",
-	"ER_TooManyInputs: Too many inputs {0} to printf system. Can only support 32",
-	"ER_TooManyPrints: Too many print statements in string {0}",
+	"ER_TooManyInputs: Too many inputs {0} to printf system. Can only support " MSF_STR(MSF_MAX_ARGUMENTS),
 	"ER_InconsistentPrintType: Inconsistent print type '{0}' at {1}. 1=Auto(%% or {{}}), 2=Specific({{X}}). Strings shouldn't mix modes.",
-	"ER_UnexpectedEnd: Unexpected end of format string",
 	"ER_DuplicateFlag: Duplicate Flag '{0:c}' found at {1}.",
 	"ER_InvalidPrintCharacter: Invalid print character '{0:c}' at {1}. Only lower and upper case ascii letters supported",
 	"ER_TypeMismatch: Type mismatch for print character '{0:c}' at {1}",
 	"ER_UnregisteredChar: Unregistered print character  '{0:c}' at {1}",
 	"ER_WildcardType: Incorrect type specified for wildcard flag at {1}",
-	"ER_PrecisionWithoutValue: Precision specified but no value provided",
 
 	"ER_UnexpectedBrace: Unexpected '}}' at {1}. Did you forget to double up your braces?",
-	"ER_ExpectedIndex: Expected an index at {1}",
 	"ER_IndexOutOfRange: Requested print index is {1} is out of range",
 	"ER_ExpectedWidth: Expected a width value at {1}",
 	"ER_ExpectedClosingBrace: Expected a closing brace '}}' at {1}",
@@ -653,7 +643,7 @@ namespace MSF_CustomPrint
 		default:
 			if (!MSF_IsAsciiAlpha(character))
 			{
-				return MSF_PrintResult(ER_InvalidPrintCharacter, character);
+				return MSF_PrintResult(ER_InvalidPrintCharacter, character ? character : '?');
 			}
 			else
 			{
@@ -711,7 +701,7 @@ namespace MSF_CustomPrint
 		{
 			++anInput;
 			if (!MSF_IsAsciiAlpha(*anInput))
-				return MSF_PrintResult(ER_InvalidPrintCharacter, *anInput, 0);
+				return MSF_PrintResult(ER_InvalidPrintCharacter, *anInput ? *anInput : '?');
 
 			aPrintData.myPrintChar = (char)*(anInput++);
 
@@ -773,8 +763,6 @@ public:
 			{
 				switch (*str)
 				{
-				case '\0':
-					return MSF_PrintResult(ER_UnexpectedEnd, 0, 0);
 				case '%':
 				case '{':
 					if (character != *str)
@@ -782,10 +770,6 @@ public:
 					++str;
 					break;
 				default:
-					// prepare print information
-					if (myPrintedCharacters == MSF_MAX_ARGUMENTS)
-						return MSF_PrintResult(ER_TooManyPrints, myPrintedCharacters, int(str - myPrintString));
-
 					MSF_PrintData& printData = myPrintData[myPrintedCharacters++];
 					printData.myFlags = 0; // initialize the whole first block
 					printData.myPrecision = 0;
@@ -1038,7 +1022,7 @@ intptr_t MSF_FormatStringShared(MSF_StringFormatTemplate<Char> const& aStringFor
 		aBuffer = aReallocFunction(aBuffer, result.MaxBufferLength + anOffset, aUserData);
 		if (aBuffer == nullptr)
 		{
-			formatter.ProcessError(MSF_PrintResult(ER_AllocationFailed), aBuffer, aBufferLength, anOffset, aReallocFunction, aUserData);
+			MSF_ASSERT(MSF_CustomPrint::GetErrorMode() == MSF_ErrorMode::Silent, "ER_AllocationFailed: Failed to allocation additional memory for {} chars ({} bytes)", aBufferLength, aBufferLength * sizeof(Char));
 			return -1;
 		}
 

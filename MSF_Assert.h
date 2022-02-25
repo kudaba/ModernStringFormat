@@ -21,12 +21,6 @@
 #if MSF_ASSERTS_ENABLED
 
 //-------------------------------------------------------------------------------------------------
-// Helper to stringify assert conditions
-//-------------------------------------------------------------------------------------------------
-#define MSF_STR2(x) #x
-#define MSF_STR(x) MSF_STR2(x)
-
-//-------------------------------------------------------------------------------------------------
 // MSF_IsAsserting is set to true so we can detect if a format is occuring during assert processing
 // This can be useful to prevent firing recursive asserts, like when assert error handling is enabled
 //-------------------------------------------------------------------------------------------------

@@ -9,6 +9,12 @@
 //-------------------------------------------------------------------------------------------------
 
 //-------------------------------------------------------------------------------------------------
+// Helper to stringify things (not to be confused with MSF_STRING)
+//-------------------------------------------------------------------------------------------------
+#define MSF_STR2(x) #x
+#define MSF_STR(x) MSF_STR2(x)
+
+//-------------------------------------------------------------------------------------------------
 // Set the maximum number of arguments that can be provided to any print statement. Mainly affects
 // stack space usage
 //-------------------------------------------------------------------------------------------------
@@ -156,4 +162,31 @@ typedef char16_t MSF_WChar;
 #else
 #define MSF_WCHAR_IS_16 0
 typedef char32_t MSF_WChar;
+#endif
+
+//-------------------------------------------------------------------------------------------------
+// When making a capture function for ModernStringFormat, use MSF_STRING(char) in place of char const*
+// This will allow you to enable compile time validation on inputs.
+//-------------------------------------------------------------------------------------------------
+#if defined(MSF_VALIDATION_ENABLED)
+
+#if defined(_MSC_FULL_VER)
+#if _MSC_FULL_VER < 193131104
+#error "Validation is only availble on MSVC platform toolset 143 or higher"
+#endif
+#elif defined(__clang_major__)
+#if __clang_major__ < 11
+#error "Validation is only availble on clang 11 or higher"
+#endif
+#elif defined(__GNUC__)
+#if __GNUC__ < 11
+#error "Validation is only availble on gcc 11 or higher"
+#endif
+#endif
+
+#define MSF_STRING(Char) MSF_Validator<Char, typename MSF_TypeWrapper<Args>::Value...>
+#define MSF_LOOKUP_ID(...) static constexpr uint64_t ID = __VA_ARGS__
+#else
+#define MSF_STRING(Char) Char const*
+#define MSF_LOOKUP_ID(...) 
 #endif

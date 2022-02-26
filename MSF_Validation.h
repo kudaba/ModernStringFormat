@@ -89,6 +89,7 @@ struct MSF_ValidTypes
 // This is required by compile time validation, but declared outside of it for consistency and maybe some
 // possibly extensions. I.e. You should really define this for your custom types
 //-------------------------------------------------------------------------------------------------
+template <typename C>
 struct MSF_CharToTypesLookup
 {
 	template <char Char>
@@ -177,7 +178,7 @@ struct MSF_Validator
 						if (numArgs >= len)
 							MSF_ValidationError("Index out of range");
 
-						if ((MSF_ValidTypes<MSF_CharToTypesLookup>::GetType('d') & types[numArgs]) == 0)
+						if ((MSF_ValidTypes<MSF_CharToTypesLookup<Char>>::GetType('d') & types[numArgs]) == 0)
 							MSF_ValidationError("Expected integer type for width wildcard");
 
 						usedArgs |= 1LL << numArgs;
@@ -199,7 +200,7 @@ struct MSF_Validator
 							if (numArgs >= len)
 								MSF_ValidationError("Index out of range");
 
-							if ((MSF_ValidTypes<MSF_CharToTypesLookup>::GetType('d') & types[numArgs]) == 0)
+							if ((MSF_ValidTypes<MSF_CharToTypesLookup<Char>>::GetType('d') & types[numArgs]) == 0)
 								MSF_ValidationError("Expected integer type for precision wildcard");
 
 							usedArgs |= 1LL << numArgs;
@@ -218,10 +219,10 @@ struct MSF_Validator
 						if (numArgs >= len)
 							MSF_ValidationError("Index out of range");
 
-						if (MSF_ValidTypes<MSF_CharToTypesLookup>::GetType((char)aString[i]) == 0)
+						if (MSF_ValidTypes<MSF_CharToTypesLookup<Char>>::GetType((char)aString[i]) == 0)
 							MSF_ValidationError("Unknown type");
 
-						if ((MSF_ValidTypes<MSF_CharToTypesLookup>::GetType((char)aString[i]) & types[numArgs]) == 0)
+						if ((MSF_ValidTypes<MSF_CharToTypesLookup<Char>>::GetType((char)aString[i]) & types[numArgs]) == 0)
 							MSF_ValidationError("Type mismatch");
 
 						usedArgs |= 1LL << numArgs;
@@ -284,10 +285,10 @@ struct MSF_Validator
 						if (!MSF_IsAsciiAlpha(aString[i]))
 							MSF_ValidationError("Expected type specifier");
 
-						if (MSF_ValidTypes<MSF_CharToTypesLookup>::GetType((char)aString[i]) == 0)
+						if (MSF_ValidTypes<MSF_CharToTypesLookup<Char>>::GetType((char)aString[i]) == 0)
 							MSF_ValidationError("Unknown type");
 
-						if ((MSF_ValidTypes<MSF_CharToTypesLookup>::GetType((char)aString[i]) & types[index]) == 0)
+						if ((MSF_ValidTypes<MSF_CharToTypesLookup<Char>>::GetType((char)aString[i]) & types[index]) == 0)
 							MSF_ValidationError("Type mismatch");
 
 						++i;

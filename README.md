@@ -8,7 +8,7 @@ This library is intended to be a sprintf replacement with the following features
 * Extension system allows binding to additional user types
 * Option to be fully compliant with existing platforms or to customize some printing aspects for consistency across platforms
 * Faster than existing platform implementations
-* Compile time string validation without having to modify most call sites (requires full c++20 support, GCC/Clang 11 and Visual Studio 2022 (platform toolset 143))
+* Compile time string validation without having to modify most call sites (requires full c++20 support, GCC 11, Clang 12 or Visual Studio 2022 (platform toolset 143))
 * Support all character types: ``char, wchar_t, char8_t, char16_t, char32_t``. We assume that all 8 bit types are UTF8 and all 16 bit types are UTF16. ``wchar_t`` Can be either UTF16 or UTF32 depending on platform and build options.
 
 *Note: Since this library is intended to remove size requirements (%d works for all integer types) and add custom printing options ("{}"), it does not work with the standard printf compile time checks introduced in GCC/Clang. You will get compile errors for completely unsupported types, but any other errors are runtime only.*

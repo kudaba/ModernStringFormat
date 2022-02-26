@@ -175,8 +175,8 @@ typedef char32_t MSF_WChar;
 #error "Validation is only availble on MSVC platform toolset 143 or higher"
 #endif
 #elif defined(__clang_major__)
-#if __clang_major__ < 11
-#error "Validation is only availble on clang 11 or higher"
+#if __clang_major__ < 12
+#error "Validation is only availble on clang 12 or higher"
 #endif
 #elif defined(__GNUC__)
 #if __GNUC__ < 11
@@ -185,8 +185,10 @@ typedef char32_t MSF_WChar;
 #endif
 
 #define MSF_STRING(Char) MSF_Validator<Char, typename MSF_TypeWrapper<Args>::Value...>
+#define MSF_VALIDATION_ONLY(...) __VA_ARGS__
 #define MSF_LOOKUP_ID(...) static constexpr uint64_t ID = __VA_ARGS__
 #else
 #define MSF_STRING(Char) Char const*
+#define MSF_VALIDATION_ONLY(...)
 #define MSF_LOOKUP_ID(...) 
 #endif

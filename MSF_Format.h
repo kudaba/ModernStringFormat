@@ -139,12 +139,15 @@ MSF_MAP_CHAR_TO_TYPES('G', MSF_StringFormatType::Typefloat | MSF_StringFormatTyp
 // 
 // Example: MSF_DEFINE_TYPE_CONVERSION(MSF_DEFINE_TYPE_CONVERSION(std::string, aString.c_str()));
 //-------------------------------------------------------------------------------------------------
+MSF_VALIDATION_ONLY(template <typename T> struct MSF_StringFormatTypeResolver);
+
 #define MSF_DEFINE_TYPE_CONVERSION(type, ...) \
+MSF_VALIDATION_ONLY(template <> struct MSF_StringFormatTypeResolver<type> { auto Do(type const& value) { return __VA_ARGS__; } }); \
 template <> struct MSF_StringFormatTypeLookup<type> { \
 	struct Format : MSF_StringFormatType { \
 	Format(type const& value) : MSF_StringFormatType(__VA_ARGS__) {} \
 	}; \
-	MSF_LOOKUP_ID(MSF_StringFormatType(decltype([](type const& value) { return __VA_ARGS__; }(*(type*)0))(0)).myType); \
+	MSF_LOOKUP_ID(MSF_StringFormatType(decltype(MSF_StringFormatTypeResolver<type>().Do(*(type*)0))(0)).myType); \
 };
 
 //-------------------------------------------------------------------------------------------------

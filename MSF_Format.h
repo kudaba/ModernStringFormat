@@ -106,13 +106,15 @@ struct MSF_StringFormatTypeLookup
 
 //-------------------------------------------------------------------------------------------------
 // Helper to map print characters to supported types to check for type mismatches
-// This is required by compile time validation, but declared outside of it for consistency and maybe some
-// possibly extensions. I.e. You should really define this for your custom types
+// This is required by compile time validation. Unfortunately you need to declare any extension types
+// BEFORE the first print statement is compiled.
 //-------------------------------------------------------------------------------------------------
 template <char Char>
 struct MSF_CharToTypes { static constexpr uint32_t Type = 0; };
 
-#define MSF_MAP_CHAR_TO_TYPES(Char, Types) template <> struct MSF_CharToTypes<Char> { static constexpr uint32_t Type = Types; };
+#define MSF_MAP_CHAR_TO_TYPES(Char, Types) template <> struct MSF_CharToTypes<Char> { static constexpr uint32_t Type = Types; }
+#define MSF_MAP_CHAR_TO_USER_TYPE(Char, index) template <> struct MSF_CharToTypes<Char> { static constexpr uint32_t Type = MSF_StringFormatType::TypeUser << index; }
+#define MSF_DEFINE_USER_PRINTF_TYPE_WITH_CHAR(type, index, Char) MSF_DEFINE_USER_PRINTF_TYPE(type, index); MSF_MAP_CHAR_TO_USER_TYPE(Char, index)
 
 MSF_MAP_CHAR_TO_TYPES('c', MSF_StringFormatType::Type8 | MSF_StringFormatType::Type16 | MSF_StringFormatType::Type32 | MSF_StringFormatType::Type64);
 MSF_MAP_CHAR_TO_TYPES('C', MSF_StringFormatType::Type8 | MSF_StringFormatType::Type16 | MSF_StringFormatType::Type32 | MSF_StringFormatType::Type64);
@@ -147,7 +149,7 @@ template <> struct MSF_StringFormatTypeLookup<type> { \
 	struct Format : MSF_StringFormatType { \
 	Format(type const& value) : MSF_StringFormatType(__VA_ARGS__) {} \
 	}; \
-	MSF_LOOKUP_ID(MSF_StringFormatType(decltype(MSF_StringFormatTypeResolver<type>().Do(*(type*)0))(0)).myType); \
+	MSF_LOOKUP_ID(MSF_StringFormatType(decltype(MSF_StringFormatTypeResolver<type>().Do(*(type*)0))()).myType); \
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -332,7 +334,7 @@ extern intptr_t MSF_FormatString(MSF_StringFormatWChar const& aStringFormat, wch
 template<typename ...Args>
 MSF_StringFormatContainer<char, Args...> MSF_MakeStringFormat(MSF_STRING(char) aString, ARGS args) { return MSF_StringFormatContainer<char, Args...>(aString, args...); }
 template<typename ...Args>
-MSF_StringFormatContainer<char, Args...> MSF_MakeStringFormat(MSF_STRING(char8_t) aString, ARGS args) { return MSF_StringFormatContainer<char8_t, Args...>(aString, args...); }
+MSF_StringFormatContainer<char8_t, Args...> MSF_MakeStringFormat(MSF_STRING(char8_t) aString, ARGS args) { return MSF_StringFormatContainer<char8_t, Args...>(aString, args...); }
 template<typename ...Args>
 MSF_StringFormatContainer<char16_t, Args...> MSF_MakeStringFormat(MSF_STRING(char16_t) aString, ARGS args) { return MSF_StringFormatContainer<char16_t, Args...>(aString, args...); }
 template<typename ...Args>
@@ -347,51 +349,26 @@ template<uint32_t Size, typename ...Args>
 intptr_t MSF_Format(char (&aBuffer)[Size], MSF_STRING(char) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, Size); }
 template<typename ...Args>
 intptr_t MSF_Format(char* aBuffer, size_t aSize, MSF_STRING(char) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(char* aBuffer, int aSize, MSF_STRING(char) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize); }
 //-------------------------------------------------------------------------------------------------
 template<uint32_t Size, typename ...Args>
 intptr_t MSF_Format(char8_t(&aBuffer)[Size], MSF_STRING(char8_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char8_t, Args...>(aString, args...), aBuffer, Size); }
 template<typename ...Args>
 intptr_t MSF_Format(char8_t* aBuffer, size_t aSize, MSF_STRING(char8_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char8_t, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(char8_t* aBuffer, int aSize, MSF_STRING(char8_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char8_t, Args...>(aString, args...), aBuffer, aSize); }
 //-------------------------------------------------------------------------------------------------
 template<uint32_t Size, typename ...Args>
 intptr_t MSF_Format(char16_t(&aBuffer)[Size], MSF_STRING(char16_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char16_t, Args...>(aString, args...), aBuffer, Size); }
 template<typename ...Args>
 intptr_t MSF_Format(char16_t* aBuffer, size_t aSize, MSF_STRING(char16_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char16_t, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(char16_t* aBuffer, int aSize, MSF_STRING(char16_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char16_t, Args...>(aString, args...), aBuffer, aSize); }
 //-------------------------------------------------------------------------------------------------
 template<uint32_t Size, typename ...Args>
 intptr_t MSF_Format(char32_t(&aBuffer)[Size], MSF_STRING(char32_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char32_t, Args...>(aString, args...), aBuffer, Size); }
 template<typename ...Args>
 intptr_t MSF_Format(char32_t* aBuffer, size_t aSize, MSF_STRING(char32_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char32_t, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(char32_t* aBuffer, int aSize, MSF_STRING(char32_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char32_t, Args...>(aString, args...), aBuffer, aSize); }
 //-------------------------------------------------------------------------------------------------
 template<uint32_t Size, typename ...Args>
 intptr_t MSF_Format(wchar_t(&aBuffer)[Size], MSF_STRING(wchar_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), aBuffer, Size); }
 template<typename ...Args>
 intptr_t MSF_Format(wchar_t* aBuffer, size_t aSize, MSF_STRING(wchar_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(wchar_t* aBuffer, int aSize, MSF_STRING(wchar_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), aBuffer, aSize); }
-//-------------------------------------------------------------------------------------------------
-// Add intptr_t when it's a different size to allow for more automatic capture without casting
-//-------------------------------------------------------------------------------------------------
-#if INT32_MAX != INTPTR_MAX
-template<typename ...Args>
-intptr_t MSF_Format(char* aBuffer, intptr_t aSize, MSF_STRING(char) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(char8_t* aBuffer, intptr_t aSize, MSF_STRING(char8_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char8_t, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(char16_t* aBuffer, intptr_t aSize, MSF_STRING(char16_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char16_t, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(char32_t* aBuffer, intptr_t aSize, MSF_STRING(char32_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<char32_t, Args...>(aString, args...), aBuffer, aSize); }
-template<typename ...Args>
-intptr_t MSF_Format(wchar_t* aBuffer, intptr_t aSize, MSF_STRING(wchar_t) aString, ARGS args) { return MSF_FormatString(MSF_StringFormatContainer<wchar_t, Args...>(aString, args...), aBuffer, aSize); }
-#endif
 
 //-------------------------------------------------------------------------------------------------
 // Make a backup copy of string format structure. This will request an allocation to hold all relevant data.

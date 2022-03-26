@@ -15,11 +15,12 @@ struct MSF_UnsignedToString
 		BufferLength = MaxLength + 1
 	};
 
+	constexpr MSF_UnsignedToString() : myLength(0) { myBuffer[0] = 0; }
 	MSF_UnsignedToString(Type aValue, uint32_t aRadix = 10, char aHexStart = 'a');
 
-	uint32_t Length() const { return myLength; }
-	operator Char const* () const { return myBuffer + MaxLength - myLength; }
-	Char const* GetString() const { return myBuffer + MaxLength - myLength; }
+	constexpr uint32_t Length() const { return myLength; }
+	constexpr operator Char const* () const { return myBuffer + MaxLength - myLength; }
+	constexpr Char const* GetString() const { return myBuffer + MaxLength - myLength; }
 
 protected:
 	uint32_t myLength;
@@ -32,6 +33,7 @@ protected:
 template<typename SignedType, typename UnsignedType, typename Char = char>
 struct MSF_SignedToString : public MSF_UnsignedToString<UnsignedType, Char>
 {
+	constexpr MSF_SignedToString() {}
 	MSF_SignedToString(SignedType aValue, uint32_t aRadix = 10, char aHexStart = 'a');
 };
 

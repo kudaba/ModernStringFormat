@@ -164,6 +164,24 @@ typedef char16_t MSF_WChar;
 typedef char32_t MSF_WChar;
 #endif
 
+#if defined(MSF_VALIDATION_TRY_ENABLE)
+
+#if defined(_MSC_FULL_VER)
+#if _MSC_FULL_VER >= 193131104
+#define MSF_VALIDATION_ENABLED
+#endif
+#elif defined(__clang_major__)
+#if __clang_major__ >= 12
+#define MSF_VALIDATION_ENABLED
+#endif
+#elif defined(__GNUC__)
+#if __GNUC__ >= 11
+#define MSF_VALIDATION_ENABLED
+#endif
+#endif
+
+#endif // MSF_VALIDATION_TRY_ENABLE
+
 //-------------------------------------------------------------------------------------------------
 // When making a capture function for ModernStringFormat, use MSF_STRING(char) in place of char const*
 // This will allow you to enable compile time validation on inputs.
@@ -187,8 +205,11 @@ typedef char32_t MSF_WChar;
 #define MSF_STRING(Char) MSF_Validator<Char, typename MSF_TypeWrapper<Args>::Value...>
 #define MSF_VALIDATION_ONLY(...) __VA_ARGS__
 #define MSF_LOOKUP_ID(...) static constexpr uint64_t ID = __VA_ARGS__
-#else
+
+#else // MSF_VALIDATION_ENABLED
+
 #define MSF_STRING(Char) Char const*
 #define MSF_VALIDATION_ONLY(...)
 #define MSF_LOOKUP_ID(...) 
-#endif
+
+#endif // MSF_VALIDATION_ENABLED

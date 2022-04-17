@@ -139,18 +139,18 @@ MSF_MAP_CHAR_TO_TYPES('G', MSF_StringFormatType::Typefloat | MSF_StringFormatTyp
 // For types that don't auto convert to a known type you can use this macro to define a conversion
 // function to use at call sites.
 // 
-// Example: MSF_DEFINE_TYPE_CONVERSION(MSF_DEFINE_TYPE_CONVERSION(std::string, aString.c_str()));
+// Example: MSF_DEFINE_TYPE_CONVERSION(MSF_DEFINE_TYPE_CONVERSION(std::string, value.c_str()));
 //-------------------------------------------------------------------------------------------------
-MSF_VALIDATION_ONLY(template <typename T> struct MSF_StringFormatTypeResolver);
-
-#define MSF_DEFINE_TYPE_CONVERSION(type, ...) \
-MSF_VALIDATION_ONLY(template <> struct MSF_StringFormatTypeResolver<type> { auto Do(type const& value) { return __VA_ARGS__; } }); \
-template <> struct MSF_StringFormatTypeLookup<type> { \
+#define MSF_DEFINE_TEMPLATE_TYPE_CONVERSION(type, ...) \
+struct MSF_StringFormatTypeLookup<type> { \
 	struct Format : MSF_StringFormatType { \
 	Format(type const& value) : MSF_StringFormatType(__VA_ARGS__) {} \
 	}; \
-	MSF_LOOKUP_ID(MSF_StringFormatType(decltype(MSF_StringFormatTypeResolver<type>().Do(*(type*)0))()).myType); \
+	MSF_VALIDATION_ONLY(auto Resolve(type const& value) { return __VA_ARGS__; }); \
+	MSF_LOOKUP_ID(MSF_StringFormatType(decltype(Resolve(*(type*)0))()).myType); \
 };
+
+#define MSF_DEFINE_TYPE_CONVERSION(type, ...) template<> MSF_DEFINE_TEMPLATE_TYPE_CONVERSION(type, __VA_ARGS__)
 
 //-------------------------------------------------------------------------------------------------
 // For everything else, users must define the supported types using the macro to keep
@@ -175,13 +175,14 @@ public:
 };
 
 //-------------------------------------------------------------------------------------------------
+#define MSF_DEFINE_USER_PRINTF_TEMPLATE_TYPE(type, index) MSF_DEFINE_USER_PRINTF_TEMPLATE_TYPE_FLAG(type, index, 0)
 #define MSF_DEFINE_USER_PRINTF_TYPE(type, index) MSF_DEFINE_USER_PRINTF_TYPE_FLAG(type, index, 0)
 
 //-------------------------------------------------------------------------------------------------
 // Use this if you want to include any additional or custom information along with your type to allow sharing
 // print functions without consuming additional indexes
 //-------------------------------------------------------------------------------------------------
-#define MSF_DEFINE_USER_PRINTF_TYPE_FLAG(type, index, flag) template <>\
+#define MSF_DEFINE_USER_PRINTF_TEMPLATE_TYPE_FLAG(type, index, flag) \
 struct MSF_StringFormatTypeLookup<type>\
 {\
 	static constexpr uint64_t UserIndex = index; \
@@ -189,6 +190,9 @@ struct MSF_StringFormatTypeLookup<type>\
 	static constexpr uint64_t Flag = flag; \
     using Format = MSF_StringFormatTypeCustom<type, ID, Flag>;\
 };
+
+#define MSF_DEFINE_USER_PRINTF_TYPE_FLAG(type, index, flag) template <> MSF_DEFINE_USER_PRINTF_TEMPLATE_TYPE_FLAG(type, index, flag)
+
 //-------------------------------------------------------------------------------------------------
 // For int types that don't match our internal types you can extend using this.
 // It will convert to the nearest size/signed type (i.e. DWORD on windows)
